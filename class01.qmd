@@ -159,7 +159,7 @@ John **Tukey** (1915-2000)^[Image Source: <http://www.azquotes.com/author/14847-
 1. Review the [main course website](https://thomaselove.github.io/431-2023/), being sure to visit the [Course Calendar](https://thomaselove.github.io/431-2023/calendar.html).
 2. Read through the [Course Syllabus](https://thomaselove.github.io/431-syllabus-2023/).
 3. Obtain David Spiegelhalter's *The Art of Statistics: How to Learn from Data* (~$20).
-4. Complete the [Welcome to 431 survey](https://bit.ly/431-2023-welcome-survey).
+4. Complete the [Welcome to 431 survey](https://bit.ly/431-2023-welcome-survey) (due **tomorrow** at noon.)
 5. [Install the software](https://thomaselove.github.io/431-2023/software.html) you'll need.
 6. Sign up for [Campuswire](https://thomaselove.github.io/431-2023/campuswire.html).
 7. Look at the [Course Notes](https://thomaselove.github.io/431-notes/)
@@ -403,3 +403,17 @@ ggplot(filter(ageguess, year == 2021), aes(x = age, y = error, fill = sex)) +
 
 See you Thursday at 1 PM right here.
 
+## Repeating: Ten Things To Do After Class 01 {.smaller}
+
+1. Review the [main course website](https://thomaselove.github.io/431-2023/), being sure to visit the [Course Calendar](https://thomaselove.github.io/431-2023/calendar.html).
+2. Read through the [Course Syllabus](https://thomaselove.github.io/431-syllabus-2023/).
+3. Obtain David Spiegelhalter's *The Art of Statistics: How to Learn from Data* (~$20).
+4. Complete the [Welcome to 431 survey](https://bit.ly/431-2023-welcome-survey) (due **tomorrow** at noon.)
+5. [Install the software](https://thomaselove.github.io/431-2023/software.html) you'll need.
+6. Sign up for [Campuswire](https://thomaselove.github.io/431-2023/campuswire.html).
+7. Look at the [Course Notes](https://thomaselove.github.io/431-notes/)
+8. Bookmark some books, plus the Posit Cheatsheets (see README).
+9. Ask us questions! Campuswire is available now. TA hours start 2023-09-05.
+10. Take a look at [Lab 01](https://github.com/THOMASELOVE/431-labs-2023) due 2023-09-12, our first substantial assignment.
+
+See the [Class 01 README](https://github.com/THOMASELOVE/431-classes-2023/tree/main/class01) for more details.
