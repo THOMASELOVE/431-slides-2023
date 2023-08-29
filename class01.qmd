@@ -163,9 +163,9 @@ John **Tukey** (1915-2000)^[Image Source: <http://www.azquotes.com/author/14847-
 5. [Install the software](https://thomaselove.github.io/431-2023/software.html) you'll need.
 6. Sign up for [Campuswire](https://thomaselove.github.io/431-2023/campuswire.html).
 7. Look at the [Course Notes](https://thomaselove.github.io/431-notes/)
-8. Bookmark two books, plus the RStudio Cheatsheets (see README).
+8. Bookmark some books, plus the Posit Cheatsheets (see README).
 9. Ask us questions! Campuswire is available now. TA hours start 2023-09-05.
-10. Take a look at Lab 01 due 2023-09-12, our first substantial assignment.
+10. Take a look at [Lab 01](https://github.com/THOMASELOVE/431-labs-2023) due 2023-09-12, our first substantial assignment.
 
 See the [Class 01 README](https://github.com/THOMASELOVE/431-classes-2023/tree/main/class01) for more details.
 
@@ -288,9 +288,9 @@ Do you think you did that well?
 
 ![](c01/images/kevin-love.jpg)
 
-## THIS Kevin Love, on the right (January 2019)
+## THIS Kevin Love, at left (Aug 2023)
 
-![](c01/images/love-family-2019.jpg)
+![](c01/images/love-family-2023-08-20.jpg)
 
 ## Card 5
 
