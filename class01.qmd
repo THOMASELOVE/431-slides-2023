@@ -11,7 +11,7 @@ format:
     preview-links: auto
     date-format: iso
     logo: 431-2023-pic.png
-    footer: "431 Class 01 | 2023-08-29 | https://thomaselove.github.io/431-2023/"
+    footer: "431 Class 01 | 2023-08-29 | <https://thomaselove.github.io/431-2023/>"
 ---
 
 ## Getting To These Slides
