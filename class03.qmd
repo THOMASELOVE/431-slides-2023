@@ -1,0 +1,287 @@
+---
+title: "431 Class 03"
+author: "Thomas E. Love, Ph.D."
+date: "2022-09-06"
+format:
+  revealjs: 
+    theme: simple
+    self-contained: true
+    slide-number: true
+    preview-links: auto
+    logo: 431-class-foot2.png
+    footer: "431 Class 03 | 2022-09-06 | https://thomaselove.github.io/431-2022/"
+---
+
+## Today's Agenda {.smaller}
+
+- Work in R with a familiar data set (the 15 question survey from Class 02)
+- Open RStudio, load in some data and a template to write R Markdown code
+  - We'll do a little typing into the template today, but just a little.
+    - We'll then look at the completed R Markdown document.
+    - We'll also inspect and knit the R Markdown file after all of the code is included.
+  - Then we'll start over again with the slides.
+- These slides walk through everything in that R Markdown document
+
+::: aside
+Version `r Sys.time()`
+:::
+
+## Today's Files
+
+From our [431-data page](https://github.com/THOMASELOVE/431-data), or our [Class 03 README (data folder)](https://github.com/THOMASELOVE/431-classes-2022/tree/main/class03/data), you should find:
+
+- `431-first-r-template.Rmd`
+- `quick_survey_2022.csv`
+
+and
+
+- `431-class03-all-code.Rmd`
+
+in addition to the usual slide materials.
+
+## Today's Plan
+
+We're using R Markdown to gather together into a single document:
+
+- the code we build, 
+- text commenting on and reacting to that code, and 
+- the output of the analyses we build.
+
+Everything in these slides is also going into our R Markdown file.
+
+
+## Load packages and set theme
+
+```{r}
+#| echo: true
+#| message: false
+
+library(janitor)
+library(patchwork)
+library(tidyverse)
+
+theme_set(theme_bw())
+```
+
+Loading packages in R is like opening up apps on your phone. We need to tell R that, in addition to the base functions available in the software, we also have other functions we want to use. 
+
+- Why are we loading these packages, in particular?
+
+## On the tidyverse meta-package {.smaller}
+
+- The most important package is actually a series of packages called the `tidyverse`, which we'll use in every R Markdown file we create this semester. 
+    - The `tidyverse` includes several packages, all developed (in part) by Hadley Wickham, Chief Scientist at RStudio.
+    - `dplyr` is our main package for data wrangling, cleaning and transformation
+    - `ggplot2` is our main visualization package we'll use for visualization
+    - other `tidyverse` packages help import data, work with factors and other common activities.
+    
+## More on today's packages
+
+- The `janitor` package has some tools for examining, cleaning and tabulating data (including `tabyl()` and `clean_names()`) that we'll use regularly.
+- The `patchwork` package will help us show multiple `ggplots` together.
+- It's helpful to load the `tidyverse` package last.
+
+## Today's Data
+
+Our data come from the Quick 15-item Survey we did in Class 02 ([pdf in Class 02 README](https://github.com/THOMASELOVE/431-classes-2022/tree/main/class02)), which we've done (in various forms) since 2014. 
+
+- A copy of these data (in .csv format) is on our [431-data page](https://github.com/THOMASELOVE/431-data), and also linked on our [Class 03 README](https://github.com/THOMASELOVE/431-classes-2022/tree/main/class03).
+
+We'll tackle several exploratory questions of interest...
+
+## Our Questions of Interest
+
+1. What is the distribution of pulse rates among students in 431 since 2014?
+2. Does the distribution of student heights change materially over time?
+3. Is a Normal distribution a good model for our data?
+4. Do taller people appear to have paid less for their most recent haircut?
+5. Do students have a more substantial tobacco history if they prefer to speak English or a language other than English?
+
+## Read in data from `.csv` file
+
+```{r}
+#| echo: true
+quicksur_raw <- 
+  read_csv("c03/data/quick_survey_2022.csv", show_col_types = FALSE) |>
+  clean_names()
+```
+
+- Note the `<-` assignment arrow to create `quicksur_raw`
+- Here, we use `read_csv` to read in data from the `c03/data` subfolder of my R project directory which contains the `quick_survey_2022.csv` file from our [431-data page](https://github.com/THOMASELOVE/431-data).
+- We use `show_col_types = FALSE` to suppress some unnecessary output describing the column types
+- We use `clean_names()` from the janitor package
+- Note the use of the pipe `|>` to direct the information flow
+
+## What is the result?
+
+```{r}
+#| echo: true
+quicksur_raw
+```
+
+## A more detailed look?
+
+```{r}
+#| echo: true
+glimpse(quicksur_raw)
+```
+
+## Counting Categories
+
+```{r}
+#| echo: true
+quicksur_raw |> count(glasses)
+```
+
+```{r}
+#| echo: true
+quicksur_raw |> count(glasses, english)
+```
+
+## Favorite Color in 2022?
+
+```{r}
+#| echo: true
+quicksur_raw |>
+    filter(year == "2022") |>
+    tabyl(favcolor) |>
+    adorn_pct_formatting()
+```
+
+## Using `summary()` on Quantities
+
+```{r}
+#| echo: true
+quicksur_raw |> 
+  select(love_htcm, haircut, height_in, lastsleep) |>
+  summary()
+```
+
+- Numerical summaries (five quantiles, plus the mean) for:
+  - your guess of my height (in cm), the price of your last haircut, your height (in inches), and the hours of sleep you got last night
+- How many observations are available for these measures?
+
+# Manage the data into `qsdat`
+
+## Recall our Questions of Interest
+
+1. What is the distribution of pulse rates among students in 431 since 2014?
+2. Does the distribution of student heights change materially over time?
+3. Is the Normal distribution a good model for our data?
+3. Do taller people appear to have paid less for their most recent haircut?
+4. Do students have a more substantial tobacco history if they prefer to speak English or a language other than English?
+
+## Variables we'll look at closely today {.smaller}
+
+To address our Questions of Interest, we need these seven variables in our analytic data frame (tibble.)
+
+-   `student`: student identification (numerical code)
+-   `year`: indicates year when survey was taken (August)
+-   `english`: y = prefers to speak English, else n
+-   `smoke`: 1 = never smoker, 2 = quit, 3 = current
+-   `pulse`: pulse rate (beats per minute)
+-   `height_in`: student's height (in inches)
+-   `haircut`: price of student's last haircut (in \$)
+
+## Select our variables
+
+```{r}
+#| echo: true
+qsdat <- quicksur_raw |>
+    select(student, year, english, smoke, 
+           pulse, height_in, haircut)
+```
+
+- The `select()` function chooses the variables (columns) we want to keep in our new tibble called `qsdat`.
+- What should the result of this code look like?
+
+## What do we have now?
+
+```{r}
+#| echo: true
+qsdat
+```
+
+## Initial Numeric Summaries
+
+- Is everything the "type" of variable it should be? 
+- Are we getting the summaries we want?
+
+```{r}
+#| echo: true
+summary(qsdat)
+```
+
+## What should we be seeing?
+
+- Categorical variables should list the categories, with associated counts. 
+  - To accomplish this, the variable needs to be represented in R with a `factor`, rather than as a `character` or `numeric` variable.
+- Quantitative variables should show the minimum, median, mean, maximum, etc.
+
+```{r}
+#| echo: true
+names(qsdat)
+```
+
+## Change categorical variables to factors
+
+We want the `year` and `smoke` information treated as categorical, rather than as quantitative, and the `english` information as a factor, too. Also, do we want to summarize the student ID codes?
+
+- We use the `mutate()` function to help with this.
+
+```{r}
+#| echo: true
+qsdat <- qsdat |>
+    mutate(year = as_factor(year),
+           smoke = as_factor(smoke),
+           english = as_factor(english),
+           student = as.character(student))
+```
+
+- Note that it's `as_factor()` but `as.character()`. Sigh.
+
+## Next step: Recheck the summaries and do range checks
+
+-   Do these summaries make sense?
+-   Are the minimum and maximum values appropriate?
+-   How much missingness are we to deal with?
+
+## Now, how's our summary?
+
+```{r}
+#| echo: true
+
+summary(qsdat)
+```
+
+- Some things to look for appear on the next slide.
+
+## What to look for...
+
+- Are we getting counts for all variables that are categorical?
+    - Do the category levels make sense?
+- Are we getting means and medians for all variables that are quantities?
+    - Do the minimum and maximum values make sense for each of these quantities?
+- Which variables have missing data, as indicated by `NA's`?
+
+## The summary for `year` is an issue
+
+- Just to fill in the gap left by the `summary()` result, how many students responded each year?
+
+```{r}
+#| echo: true
+qsdat |> tabyl(year) |> adorn_totals() |> adorn_pct_formatting()
+```
+
+## This is how far we got in Class 03. 
+
+See the Class 04 slides for the remainder of the materials originally posted here.
+
+## Session Information
+
+Don't forget to close your file with the session information.
+
+```{r}
+#| echo: true
+sessionInfo()
+```
