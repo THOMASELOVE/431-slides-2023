@@ -1,0 +1,680 @@
+---
+title: "431 Class 04"
+author: Thomas E. Love, Ph.D.
+date: "2023-09-07"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 04 | 2023-09-07 | <https://thomaselove.github.io/431-2023/>"
+---
+
+## Today's Agenda {.smaller}
+
+- Work in R with a familiar data set (the 15 question "quick survey" from Class 02)
+- Open RStudio, load in some data and a template to write Quarto code
+  - We'll do a little typing into the template today, but just a little.
+    - We'll then look at the completed Quarto document.
+    - We'll also inspect and knit the Quarto file after all of the code is included.
+  - Then we'll start over again with the slides.
+
+Many of the Class 04 slides are the same slides that were presented in Class 03.
+
+## Load packages and set theme
+
+```{r}
+#| echo: true
+#| message: false
+
+library(janitor)
+library(patchwork)
+library(tidyverse)
+
+theme_set(theme_bw())
+knitr::opts_chunk$set(comment = NA)
+```
+
+### Read in data from `.csv` file
+
+```{r}
+#| echo: true
+quicksur_raw <- 
+  read_csv("c04/data/quick_survey_2023.csv", show_col_types = FALSE) |>
+  clean_names()
+```
+
+## Five Questions of Interest
+
+1. What is the distribution of pulse rates among students in 431 since 2014? (discussed in Class 03)
+2. Does the distribution of student heights change materially over time?
+3. Is the Normal distribution a good model for some of our quantitative data?
+4. Do taller people appear to have paid less for their most recent haircut?
+5. Do students have a more substantial tobacco history if they prefer to speak English or a language other than English?
+
+
+## Variables we'll look at closely today {.smaller}
+
+To address our Questions of Interest, we need these seven variables in our analytic data frame (tibble.)
+
+-   `student`: student identification (numerical code)
+-   `year`: indicates year when survey was taken (August)
+-   `english`: y = prefers to speak English, else n
+-   `smoke`: 1 = never smoker, 2 = quit, 3 = current
+-   `pulse`: pulse rate (beats per minute)
+-   `height_in`: student's height (in inches)
+-   `haircut`: price of student's last haircut (in \$)
+
+## Select our variables
+
+```{r}
+#| echo: true
+qsdat <- quicksur_raw |>
+    select(student, year, english, smoke, 
+           pulse, height_in, haircut)
+```
+
+### Change categorical variables to factors
+
+```{r}
+#| echo: true
+qsdat <- qsdat |>
+    mutate(year = as_factor(year),
+           smoke = as_factor(smoke),
+           english = as_factor(english),
+           student = as.character(student))
+```
+
+# Question 2 <br /> (Student Heights over Time)
+
+## Yearly Five-Number Summaries
+
+```{r}
+#| echo: true
+#| eval: false
+qsdat |>
+    filter(complete.cases(height_in)) |>
+    group_by(year) |>
+    summarize(n = n(), min = min(height_in), q25 = quantile(height_in, 0.25),
+              median = median(height_in), q75 = quantile(height_in, 0.75),
+              max = max(height_in))
+```
+
+- What should this produce? (Results on next slide)
+
+## Yearly Five-Number Summaries
+
+```{r}
+qsdat |>
+    filter(complete.cases(height_in)) |>
+    group_by(year) |>
+    summarize(n = n(), min = min(height_in), q25 = quantile(height_in, 0.25),
+              median = median(height_in), q75 = quantile(height_in, 0.75),
+              max = max(height_in))
+```
+
+- Does the distribution of heights change materially in 2014-2023?
+- What are these summaries, specifically?
+
+## Five-Number Summary
+
+- Key summaries based on percentiles / quantiles
+    - minimum = 0th, maximum = 100th, median = 50th
+    - quartiles (25th, 50th and 75th percentiles)
+    - Range is maximum - minimum
+    - IQR (inter-quartile range) is 75th - 25th percentile
+- These summaries are generally more resistant to outliers than mean, standard deviation
+- Form the elements of a boxplot (box-and-whisker plot)
+
+## Comparison Boxplot: Heights by Year
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+dat2 <- qsdat |>
+    filter(complete.cases(height_in)) 
+
+ggplot(data = dat2, aes(x = year, y = height_in)) +
+    geom_boxplot() +
+    labs(title = "Heights of Dr. Love's students, by year",
+         subtitle = "2014 - 2023", x = "Year", y = "Height (in inches)")
+```
+
+- How did we deal with missing data here?
+
+## Thinking about the Boxplot
+
+- Box covers the middle half of the data (25th and 75th percentiles), and the solid line indicates the median
+- Whiskers extend from the quartiles to the most extreme values that are not judged by **Tukey's** "fences" method to be candidate outliers
+    - Fences are drawn at 25th percentile - 1.5 IQR and 75th percentile + 1.5 IQR
+- Are any values candidate outliers by this method? For which years?
+- Was it important to change `year` to a factor earlier?
+
+## Adding a Violin to the Boxplot
+
+- When we'd like to better understand the shape of a distribution, we can amplify the boxplot.
+
+```{r}
+#| echo: true
+#| output-location: slide
+dat2 <- qsdat |>
+    filter(complete.cases(height_in))
+
+ggplot(data = dat2, aes(x = year, y = height_in)) +
+    geom_violin() +
+    geom_boxplot(aes(fill = year), width = 0.3) +
+    guides(fill = "none") +
+    scale_fill_viridis_d() +
+    labs(title = "Heights of Dr. Love's students, by year",
+         subtitle = "2014 - 2023", x = "Year", y = "Height (in inches)")
+```
+
+## Thinking About our Boxplot with Violin
+
+- How did we change the boxplot when we added the violin?
+- What would happen if we added the boxplot first and the violin second?
+- What does `guides(fill = "none")` do?
+- What does `scale_fill_viridis_d()` do?
+
+## Table of Means and Standard Deviations
+
+```{r}
+#| echo: true
+
+qsdat |>
+    filter(complete.cases(height_in)) |>
+    group_by(year) |>
+    summarize(n = n(), mean = mean(height_in), sd = sd(height_in))
+```
+
+## So, what do we think?
+
+Are the distributions of student height very different from year to year?
+
+- What output that I've provided here can help answer this question?
+- What other things would you like to see?
+
+# Question 3 <br /> Can we assume that the Mean and SD are sensible summaries?
+
+## A Normal distribution (bell-shaped curve)
+
+This is a Normal (or Gaussian) distribution with mean 150 and standard deviation 30.
+
+![](c04/images/khan_normal.png)
+
+- A Normal distribution is completely specified by its mean and standard deviation. The "bell shape" doesn't change.
+
+## Summarizing Quantitative Data
+
+If the data followed a Normal model, 
+
+- we would be justified in using the sample **mean** to describe the center, and
+- in using the sample **standard deviation** to describe the spread (variation.)
+
+But it is often the case that these measures aren't robust enough, because the data show meaningful skew (asymmetry), or the data have lighter or heavier tails than a Normal model would predict.
+
+
+## The Empirical Rule for Approximately Normal Distributions 
+
+If the data followed a Normal distribution,
+
+- approximately 68% of the data would be within 1 SD of the mean, 
+- approximately 95% of the data would be within 2 SD of the mean, while 
+- essentially all (99.7%) of the data would be within 3 SD of the mean.
+
+## Empirical Rule & 2023 Student Heights
+
+In 2023, we had 53 students whose `height_in` was available, with mean 66.0 inches (167.6 cm) and standard deviation 4 inches (10.2 cm).
+
+What do the histogram (next slide) and boxplot (seen earlier) suggest about whether a Normal model with this mean and standard deviation would hold well for these 53 student heights?
+
+## Histogram of 2023 Student Heights
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+dat3 <- qsdat |>
+  filter(complete.cases(height_in)) |>
+  filter(year == "2023")
+
+ggplot(data = dat3, aes(x = height_in)) +
+    geom_histogram(fill = "salmon", col = "white", binwidth = 1) +
+    labs(title = "Heights of Dr. Love's students",
+         subtitle = "2023 (n = 53 students with height data)",
+         y = "Number of Students", x = "Height (inches)")
+```
+
+- How did we use the two `filter()` statements?
+- Why might I have changed from specifying `bins` to `binwidth` here?
+
+## Checking the 1-SD Empirical Rule
+
+- Of the 53 students in 2023 with heights, how many were within 1 SD of the mean?
+  - Mean = 66, SD = 4.
+  - 66 - 4 = 62 inches and 66 + 4 = 70 inches
+
+```{r}
+#| echo: true
+
+qsdat |> filter(complete.cases(height_in)) |>
+    filter(year == "2023") |>
+    count(height_in >= 62 & height_in <= 70)
+
+37/(37+16)
+```
+
+## 2-SD Empirical Rule
+
+- How many of the 53 `height_in` values gathered in 2023 were between 66 - 2(4) = 58.0 and 66 + 2(4) = 74 inches?
+
+
+```{r}
+#| echo: true
+qsdat |> filter(complete.cases(height_in)) |>
+    filter(year == "2023") |>
+    count(height_in >= 58 & height_in <= 74)
+
+52/(52+1)
+```
+
+## 3-SD Empirical Rule
+
+- How many of the 53 `height_in` values gathered in 2023 were between 66 - 3(4) = 54 and 66 + 3(4) = 78 inches?
+
+```{r}
+#| echo: true
+qsdat |> filter(complete.cases(height_in)) |>
+    filter(year == "2023") |>
+    count(height_in >= 54 & height_in <= 78)
+
+53/(53+0)
+```
+
+## Empirical Rule Table for 2023 data
+
+- $\bar{x}$ = sample mean, $s$ = sample SD
+- For `height_in`: $n$ = 53 with data, $\bar{x} = 66, s = 4$
+- For `pulse`: $n$ = 51 with data, $\bar{x} = 78.2, s = 12.7$
+
+Range | "Normal" | `height_in` | `pulse`
+:----: | :---: | :-----: | :-----:
+$\bar{x} \pm s$ | ~68% | $\frac{37}{53}$ = 69.8% | $\frac{40}{51}$ = 78.4% 
+$\bar{x} \pm 2\times s$ | ~95% | $\frac{52}{53}$ = 98.1% | $\frac{47}{51}$ = 92.2%
+$\bar{x} \pm 3\times s$ | ~99.7% | $\frac{53}{53}$ = 100% | $\frac{51}{51}$ = 100%
+
+## Boxplots of Height and of Pulse Rate
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+dat4 <- qsdat |> filter(complete.cases(height_in), year == "2023")
+
+p4 <- ggplot(data = dat4, aes(x = "height (inches)", y = height_in)) +
+  geom_violin() + geom_boxplot(width = 0.3, fill = "tomato") +
+  labs(title = "Boxplot of 2023 Student Heights", x = "")
+
+dat5 <- qsdat |> filter(complete.cases(pulse), year == "2023")
+
+p5 <- ggplot(data = dat5, aes(x = "pulse rate (beats/minute)", y = pulse)) +
+  geom_violin() + geom_boxplot(width = 0.3, fill = "dodgerblue") +
+  labs(title = "Boxplot of 2023 Pulse Rates", x = "")
+
+p4 + p5 + 
+  plot_annotation(title = "2023 Quick Survey Data")
+```
+
+- What is `width = 0.3` doing? How about the `x` options?
+- What am I doing with `p4 + p5 + plot_annotation`?
+- What should this look like?
+
+## Normality and Mean/SD as summaries
+
+If the data are approximately Normally distributed (like `height_in` and `pulse`) we can safely use the sample mean and standard deviation as summaries. If not "Normal", then ... 
+
+- The median is a more robust summary of the center.
+- For spread, we often use the 25th and 75th percentiles.
+
+```{r}
+#| echo: true
+
+dat3 <- qsdat |> filter(year == "2023")
+mosaic::favstats(~ height_in, data = dat3)
+mosaic::favstats(~ pulse, data = dat3)
+```
+
+## A new quantitative variable
+
+Let's look at haircut prices, across all years.
+
+```{r}
+#| echo: true
+mosaic::favstats(~ haircut, data = qsdat)
+```
+
+Does it seem like the Normal model will be a good fit for these prices?
+
+- Why or why not?
+- What more information do you need to make a decision?
+
+## 2023 Haircut Prices
+
+::: {.panel-tabset}
+
+### Unsorted
+
+```{r}
+#| echo: true
+qsdat |> filter(year == "2023") |> 
+  select(haircut) |> 
+  as.vector() ## just to print it here horizontally
+```
+
+### Sorted
+
+```{r}
+#| echo: true
+qsdat |> filter(year == "2023") |> 
+  select(haircut) |> arrange(haircut) |> 
+  as.vector() ## just to print it here horizontally
+```
+
+### Counts
+
+```{r}
+#| echo: true
+#| df-print: paged
+
+qsdat |> filter(year == "2023") |> 
+  count(haircut) 
+```
+
+:::
+
+## 2023 Haircut Prices, tabulated
+
+```{r}
+#| echo: true
+qsdat |> filter(year == "2023") |> tabyl(haircut) |> adorn_pct_formatting()
+```
+
+## Normality of Haircut prices?
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+dat6 <- qsdat |> filter(complete.cases(haircut))
+
+p6a <- ggplot(data = dat6, aes(x = haircut)) +
+  geom_histogram(binwidth = 5, fill = "purple", col = "white") +
+  labs(x = "Haircut Price (in $)")
+
+p6b <- ggplot(data = dat6, aes(x = haircut, y = "Price")) +
+  geom_violin(fill = "plum") + geom_boxplot(width = 0.3) +
+  labs(y = "", x = "Haircut Prices in $")
+
+p6a + p6b +
+  plot_annotation(
+    title = "Histogram and Boxplot of Haircut Prices",
+    subtitle = "2014-2023 Students of Dr. Love in 431")
+```
+
+- Do you think that the distribution of these prices follows a Normal model?
+
+## Stem-and-Leaf of Haircut Prices
+
+```{r}
+#| echo: true
+
+stem(qsdat$haircut, scale = 2) # scale makes plot twice as long as default
+```
+
+- Note this is *not* a `ggplot` so it works differently than most plots we will make this term.
+
+## Empirical Rule Table for Haircut Prices
+
+Let's look across all years, as well as just in 2023
+
+```{r}
+#| echo: true
+mosaic::favstats(~ haircut, data = qsdat)
+mosaic::favstats(~ haircut, data = qsdat |> filter(year == "2023"))
+```
+
+Range | "Normal" | 2014-2023 | 2023
+----: | :---: | :-----: | :-----:
+$\bar{x} \pm s$ | ~68% | $\frac{482}{538}$ = 89.6% | $\frac{48}{53}$ = 90.6% 
+$\bar{x} \pm 2\times s$ | ~95% | $\frac{514}{538}$ = 95.5% | $\frac{50}{53}$ = 94.3%
+$\bar{x} \pm 3\times s$ | ~99.7% | $\frac{528}{538}$ = 98.1% | $\frac{51}{53}$ = 96.2%
+
+## How did I calculate those fractions?
+
+```{r}
+#| eval: false
+#| echo: true
+
+# haircut price mean = 30.84 and sd = 32.68 across 2014-2023
+
+qsdat |> count(haircut >= 30.84 - 32.68 & haircut <= 30.84 + 32.68)
+qsdat |> count(haircut >= 30.84 - 2*32.68 & haircut <= 30.84 + 2*32.68)
+qsdat |> count(haircut >= 30.84 - 3*32.68 & haircut <= 30.84 + 3*32.68)
+
+# haircut price mean = 36.95 and sd = 42.51 in 2023 alone
+
+qsdat |> filter(year == "2023") |> 
+  count(haircut >= 36.95 - 42.51 & haircut <= 36.95 + 42.51)
+qsdat |> filter(year == "2023") |> 
+  count(haircut >= 36.95 - 2*42.51 & haircut <= 36.95 + 2*42.51)
+qsdat |> filter(year == "2023") |> 
+  count(haircut >= 36.95 - 3*42.51 & haircut <= 36.95 + 3*42.51)
+
+```
+
+# Question 4 <br /> (Heights and Haircut Prices)
+
+
+## Do tall people pay less for haircuts?
+
+Why might we think that they do, before we see the data?
+
+- Convert our student heights from inches to centimeters...
+
+```{r}
+#| echo: true
+
+qsdat <- qsdat |> mutate(height_cm = height_in * 2.54)
+
+qsdat |> select(student, height_in, height_cm) |> head()
+```
+
+## Initial Numerical Summaries
+
+```{r}
+#| echo: true
+
+qsdat |> filter(complete.cases(haircut, height_cm)) |>
+  summarize(n = n(), median(haircut), median(height_cm), median(height_in))
+```
+
+## A First Scatterplot
+
+- We'll include the straight line from a linear model, in red.
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+dat7 <- qsdat |> filter(complete.cases(height_cm, haircut)) 
+
+ggplot(dat7, aes(x = height_cm, y = haircut)) +
+    geom_point(alpha = 0.3) + 
+    geom_smooth(method = "lm", col = "red",
+                formula = y ~ x, se = TRUE) +
+    labs(x = "Height (in cm)",
+         y = "Price of last haircut (in $)",
+         title = "Do taller people pay less for haircuts?")
+```
+
+## What is the (Pearson) correlation of height and haircut price?
+
+```{r}
+#| echo: true
+dat7 <- qsdat |> filter(complete.cases(height_cm, haircut)) 
+
+dat7 |> 
+    select(height_in, height_cm, haircut) |>
+    cor() 
+```
+
+## What is the straight line regression model?
+
+```{r}
+#| echo: true
+dat7 <- qsdat |> filter(complete.cases(height_cm, haircut)) 
+
+mod1 <- lm(haircut ~ height_cm, data = dat7)
+
+mod1
+```
+
+## Summarizing our model `mod1`
+
+```{r}
+#| echo: true
+summary(mod1)
+```
+
+## Compare `lm` fit to `loess` smooth curve?
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+dat7 <- qsdat |> filter(complete.cases(height_cm, haircut)) 
+
+ggplot(dat7, aes(x = height_cm, y = haircut)) +
+    geom_point(alpha = 0.5) + 
+    geom_smooth(method = "lm", col = "red",
+                formula = y ~ x, se = FALSE) +
+    geom_smooth(method = "loess", col = "blue",
+                formula = y ~ x, se = FALSE) +
+    labs(x = "Height (in cm)",
+         y = "Price of last haircut (in $)",
+         title = "Do taller people pay less for haircuts?")
+```
+
+- Does a linear model appear to fit these data well?
+- Do taller people pay less for their haircuts?
+
+# Question 5 <br /> (Tobacco and Language Preference)
+
+## Restrict ourselves to 2023 data
+
+- Do students in the 2023 class have a more substantial history of tobacco use if they prefer to speak a language other than English?
+
+```{r}
+#| echo: true
+dat9 <- qsdat |> 
+    filter(year == "2023") |>
+    filter(complete.cases(english, smoke)) |>
+    select(student, year, english, smoke)
+```
+
+```{r}
+#| echo: true
+summary(dat9)
+```
+
+## Tabulating the categorical variables individually
+
+```{r}
+#| echo: true
+dat9 |> tabyl(english)
+
+dat9 |> tabyl(smoke) |> adorn_pct_formatting()
+```
+
+- What does `adorn_pct_formatting()` do?
+
+## Cross-Classification </br > (2 rows $\times$ 3 columns)
+
+```{r}
+#| echo: true
+dat9 |> tabyl(english, smoke)
+```
+
+## Recode the `smoke` levels to more meaningful names in `tobacco`
+
+```{r}
+#| echo: true
+dat9 <- dat9 |> 
+    mutate(tobacco = fct_recode(smoke, 
+            "Never" = "1", "Quit" = "2", "Current" = "3"))
+```
+
+### Check our work?
+
+```{r}
+#| echo: true
+dat9 |> count(smoke, tobacco)
+```
+
+- Everyone with `smoke` = 1 has `tobacco` as Never, etc.
+
+## Restate the cross-tabulation 
+
+Now we'll use this new variable, and this time, add row and column totals.
+
+```{r}
+#| echo: true
+dat9 |> tabyl(english, tobacco) |> 
+    adorn_totals(where = c("row", "col"))
+```
+
+- What can we conclude about this association?
+
+## How about in 2014-2023?
+
+```{r}
+#| echo: true
+
+dat8 <- qsdat |> 
+  filter(complete.cases(english, smoke)) |>
+  mutate(tobacco = fct_recode(smoke, 
+            "Never" = "1", "Quit" = "2", "Current" = "3"))
+
+dat8 |> 
+  tabyl(english, tobacco) |> 
+  adorn_totals(where = c("row", "col"))
+```
+
+- Now, what is your conclusion?
+
+## Cleaning up the temporary objects
+
+```{r}
+#| echo: true
+rm(mod1,
+   p4, p5, p6a, p6b,
+   dat1, dat2, dat3, dat4, dat5, dat6, dat7, dat8, dat9
+   )
+
+## this just leaves
+## qsdat and quicksur_raw in my Global Environment
+```
+
+## Session Information
+
+Don't forget to close your file with the session information.
+
+```{r}
+#| echo: true
+sessioninfo::session_info()
+```
