@@ -48,6 +48,24 @@ quicksur_raw <-
   clean_names()
 ```
 
+## Fixing an Issue from Class 03
+
+- In class 3, I used `glimpse()` on the `quicksur_raw` tibble, and the **handedness** variable appeared as a character, despite the first few results being numbers. 
+
+- When I calculated the `handedness` value in Excel, if the `h_left` and `h_right` were both NA, Excel output `#VALUE!` rather than NA or a blank, and R read that as a character.
+
+- I have now repaired the data so that `NA`s in that column are now listed as `NA` in the `.csv` files on our website. The resulting (corrected) `glimpse()` is shown on the next slide.
+
+## Glimpsing `quicksur_raw`
+
+```{r}
+#| echo: true
+
+glimpse(quicksur_raw)
+```
+
+Note that `handedness` is now imported as a double-precision number.
+
 ## Five Questions of Interest
 
 1. What is the distribution of pulse rates among students in 431 since 2014? (discussed in Class 03)
@@ -336,7 +354,7 @@ p4 + p5 +
 
 ## Normality and Mean/SD as summaries
 
-If the data are approximately Normally distributed (like `height_in` and `pulse`) we can safely use the sample mean and standard deviation as summaries. If not "Normal", then ... 
+If the data are approximately Normally distributed, we can safely use the sample mean and standard deviation as summaries. If not "Normal", then ... 
 
 - The median is a more robust summary of the center.
 - For spread, we often use the 25th and 75th percentiles.
@@ -678,3 +696,4 @@ Don't forget to close your file with the session information.
 #| echo: true
 sessioninfo::session_info()
 ```
+

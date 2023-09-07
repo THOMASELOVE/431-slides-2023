@@ -1253,6 +1253,48 @@ Thomas E. Love, Ph.D.
 <span id="cb2-3"><a href="#cb2-3"></a>  <span class="fu">clean_names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
+<section id="fixing-an-issue-from-class-03" class="slide level2">
+<h2>Fixing an Issue from Class 03</h2>
+<ul>
+<li><p>In class 3, I used <code>glimpse()</code> on the <code>quicksur_raw</code> tibble, and the <strong>handedness</strong> variable appeared as a character, despite the first few results being numbers.</p></li>
+<li><p>When I calculated the <code>handedness</code> value in Excel, if the <code>h_left</code> and <code>h_right</code> were both NA, Excel output <code>#VALUE!</code> rather than NA or a blank, and R read that as a character.</p></li>
+<li><p>I have now repaired the data so that <code>NA</code>s in that column are now listed as <code>NA</code> in the <code>.csv</code> files on our website. The resulting (corrected) <code>glimpse()</code> is shown on the next slide.</p></li>
+</ul>
+</section>
+<section id="glimpsing-quicksur_raw" class="slide level2">
+<h2>Glimpsing <code>quicksur_raw</code></h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="fu">glimpse</span>(quicksur_raw)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 547
+Columns: 23
+$ student     &lt;dbl&gt; 202301, 202302, 202303, 202304, 202305, 202306, 202307, 20…
+$ glasses     &lt;chr&gt; &quot;y&quot;, &quot;n&quot;, &quot;y&quot;, &quot;n&quot;, &quot;y&quot;, &quot;y&quot;, &quot;y&quot;, &quot;n&quot;, &quot;n&quot;, &quot;n&quot;, &quot;n&quot;, &quot;n&quot;…
+$ english     &lt;chr&gt; NA, &quot;y&quot;, &quot;y&quot;, &quot;y&quot;, &quot;y&quot;, &quot;y&quot;, &quot;y&quot;, &quot;y&quot;, &quot;y&quot;, &quot;n&quot;, &quot;n&quot;, &quot;n&quot;,…
+$ statsofar   &lt;dbl&gt; 2, NA, 4, 2, 2, 6, 5, 5, 4, 3, 2, 7, 5, 5, 5, 5, 3, 3, 3, …
+$ love_htcm   &lt;dbl&gt; 152, 152, 178, 183, 178, 178, 185, 185, 188, 185, 180, 185…
+$ smoke       &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1…
+$ h_left      &lt;dbl&gt; 0, 10, 0, 0, 0, 5, 4, 5, 0, 2, 0, 2, 10, 0, 0, 12, 0, 7, 1…
+$ h_right     &lt;dbl&gt; 10, 0, 20, 20, 10, 8, 15, 15, 10, 9, 10, 9, 0, 10, 18, 4, …
+$ handedness  &lt;dbl&gt; 1.00, -1.00, 1.00, 1.00, 1.00, 0.23, 0.58, 0.50, 1.00, 0.6…
+$ statfuture  &lt;dbl&gt; 7, 7, 6, 5, 6, 7, 7, 7, 6, 5, 7, 5, 7, 6, 7, 6, 5, 6, 6, 7…
+$ haircut     &lt;dbl&gt; 0, 10, 45, 200, 40, 35, 70, 65, 40, 0, 12, 0, 60, 80, 75, …
+$ lecture     &lt;dbl&gt; 3, 3, 2, 3, 2, 3, 4, 3, 4, 2, 5, 2, 4, 4, 4, 3, 3, 3, 4, 4…
+$ alone       &lt;dbl&gt; 3, 3, 2, 4, 2, 3, 4, 4, 3, 2, 5, 2, 4, 4, 4, 3, 4, 4, 3, 3…
+$ height_in   &lt;dbl&gt; 61.0, 63.0, 61.0, 64.0, 62.0, 73.0, 74.0, 66.0, 71.0, 60.0…
+$ hand_span   &lt;dbl&gt; 19.5, 19.0, 20.0, 19.0, 18.5, 26.0, 25.5, 21.0, 15.0, 17.5…
+$ favcolor    &lt;chr&gt; &quot;sky blue&quot;, &quot;black&quot;, &quot;purple&quot;, &quot;blue&quot;, &quot;purple&quot;, &quot;blue&quot;, &quot;…
+$ lastsleep   &lt;dbl&gt; 5.0, 6.0, 8.5, 6.0, 9.0, 6.0, 6.0, 7.0, 6.0, 8.0, 9.5, 8.0…
+$ pulse       &lt;dbl&gt; NA, NA, 104, 92, 88, 54, 72, 76, 78, 68, 68, 68, 88, 60, 7…
+$ sex         &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA…
+$ ageguess    &lt;dbl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA…
+$ year        &lt;dbl&gt; 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023…
+$ lovetrueage &lt;dbl&gt; 56.5, 56.5, 56.5, 56.5, 56.5, 56.5, 56.5, 56.5, 56.5, 56.5…
+$ lovetrueht  &lt;dbl&gt; 189, 189, 189, 189, 189, 189, 189, 189, 189, 189, 189, 189…</code></pre>
+</div>
+</div>
+<p>Note that <code>handedness</code> is now imported as a double-precision number.</p>
+</section>
 <section id="five-questions-of-interest" class="slide level2">
 <h2>Five Questions of Interest</h2>
 <ol type="1">
@@ -1279,17 +1321,17 @@ Thomas E. Love, Ph.D.
 <section id="select-our-variables" class="slide level2">
 <h2>Select our variables</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a>qsdat <span class="ot">&lt;-</span> quicksur_raw <span class="sc">|&gt;</span></span>
-<span id="cb3-2"><a href="#cb3-2"></a>    <span class="fu">select</span>(student, year, english, smoke, </span>
-<span id="cb3-3"><a href="#cb3-3"></a>           pulse, height_in, haircut)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1"></a>qsdat <span class="ot">&lt;-</span> quicksur_raw <span class="sc">|&gt;</span></span>
+<span id="cb5-2"><a href="#cb5-2"></a>    <span class="fu">select</span>(student, year, english, smoke, </span>
+<span id="cb5-3"><a href="#cb5-3"></a>           pulse, height_in, haircut)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <h3 id="change-categorical-variables-to-factors">Change categorical variables to factors</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a>qsdat <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span></span>
-<span id="cb4-2"><a href="#cb4-2"></a>    <span class="fu">mutate</span>(<span class="at">year =</span> <span class="fu">as_factor</span>(year),</span>
-<span id="cb4-3"><a href="#cb4-3"></a>           <span class="at">smoke =</span> <span class="fu">as_factor</span>(smoke),</span>
-<span id="cb4-4"><a href="#cb4-4"></a>           <span class="at">english =</span> <span class="fu">as_factor</span>(english),</span>
-<span id="cb4-5"><a href="#cb4-5"></a>           <span class="at">student =</span> <span class="fu">as.character</span>(student))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1"></a>qsdat <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span></span>
+<span id="cb6-2"><a href="#cb6-2"></a>    <span class="fu">mutate</span>(<span class="at">year =</span> <span class="fu">as_factor</span>(year),</span>
+<span id="cb6-3"><a href="#cb6-3"></a>           <span class="at">smoke =</span> <span class="fu">as_factor</span>(smoke),</span>
+<span id="cb6-4"><a href="#cb6-4"></a>           <span class="at">english =</span> <span class="fu">as_factor</span>(english),</span>
+<span id="cb6-5"><a href="#cb6-5"></a>           <span class="at">student =</span> <span class="fu">as.character</span>(student))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section>
@@ -1300,12 +1342,12 @@ Thomas E. Love, Ph.D.
 <section id="yearly-five-number-summaries" class="slide level2">
 <h2>Yearly Five-Number Summaries</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1"></a>qsdat <span class="sc">|&gt;</span></span>
-<span id="cb5-2"><a href="#cb5-2"></a>    <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
-<span id="cb5-3"><a href="#cb5-3"></a>    <span class="fu">group_by</span>(year) <span class="sc">|&gt;</span></span>
-<span id="cb5-4"><a href="#cb5-4"></a>    <span class="fu">summarize</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="at">min =</span> <span class="fu">min</span>(height_in), <span class="at">q25 =</span> <span class="fu">quantile</span>(height_in, <span class="fl">0.25</span>),</span>
-<span id="cb5-5"><a href="#cb5-5"></a>              <span class="at">median =</span> <span class="fu">median</span>(height_in), <span class="at">q75 =</span> <span class="fu">quantile</span>(height_in, <span class="fl">0.75</span>),</span>
-<span id="cb5-6"><a href="#cb5-6"></a>              <span class="at">max =</span> <span class="fu">max</span>(height_in))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1"></a>qsdat <span class="sc">|&gt;</span></span>
+<span id="cb7-2"><a href="#cb7-2"></a>    <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
+<span id="cb7-3"><a href="#cb7-3"></a>    <span class="fu">group_by</span>(year) <span class="sc">|&gt;</span></span>
+<span id="cb7-4"><a href="#cb7-4"></a>    <span class="fu">summarize</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="at">min =</span> <span class="fu">min</span>(height_in), <span class="at">q25 =</span> <span class="fu">quantile</span>(height_in, <span class="fl">0.25</span>),</span>
+<span id="cb7-5"><a href="#cb7-5"></a>              <span class="at">median =</span> <span class="fu">median</span>(height_in), <span class="at">q75 =</span> <span class="fu">quantile</span>(height_in, <span class="fl">0.75</span>),</span>
+<span id="cb7-6"><a href="#cb7-6"></a>              <span class="at">max =</span> <span class="fu">max</span>(height_in))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <ul>
 <li>What should this produce? (Results on next slide)</li>
@@ -1352,13 +1394,13 @@ Thomas E. Love, Ph.D.
 <section id="comparison-boxplot-heights-by-year" class="slide level2">
 <h2>Comparison Boxplot: Heights by Year</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1"></a>dat2 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span></span>
-<span id="cb7-2"><a href="#cb7-2"></a>    <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) </span>
-<span id="cb7-3"><a href="#cb7-3"></a></span>
-<span id="cb7-4"><a href="#cb7-4"></a><span class="fu">ggplot</span>(<span class="at">data =</span> dat2, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> height_in)) <span class="sc">+</span></span>
-<span id="cb7-5"><a href="#cb7-5"></a>    <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
-<span id="cb7-6"><a href="#cb7-6"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Heights of Dr. Love&#39;s students, by year&quot;</span>,</span>
-<span id="cb7-7"><a href="#cb7-7"></a>         <span class="at">subtitle =</span> <span class="st">&quot;2014 - 2023&quot;</span>, <span class="at">x =</span> <span class="st">&quot;Year&quot;</span>, <span class="at">y =</span> <span class="st">&quot;Height (in inches)&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1"></a>dat2 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span></span>
+<span id="cb9-2"><a href="#cb9-2"></a>    <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) </span>
+<span id="cb9-3"><a href="#cb9-3"></a></span>
+<span id="cb9-4"><a href="#cb9-4"></a><span class="fu">ggplot</span>(<span class="at">data =</span> dat2, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> height_in)) <span class="sc">+</span></span>
+<span id="cb9-5"><a href="#cb9-5"></a>    <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
+<span id="cb9-6"><a href="#cb9-6"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Heights of Dr. Love&#39;s students, by year&quot;</span>,</span>
+<span id="cb9-7"><a href="#cb9-7"></a>         <span class="at">subtitle =</span> <span class="st">&quot;2014 - 2023&quot;</span>, <span class="at">x =</span> <span class="st">&quot;Year&quot;</span>, <span class="at">y =</span> <span class="st">&quot;Height (in inches)&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 
 <ul>
@@ -1387,16 +1429,16 @@ Thomas E. Love, Ph.D.
 <li>When we’d like to better understand the shape of a distribution, we can amplify the boxplot.</li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1"></a>dat2 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span></span>
-<span id="cb8-2"><a href="#cb8-2"></a>    <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in))</span>
-<span id="cb8-3"><a href="#cb8-3"></a></span>
-<span id="cb8-4"><a href="#cb8-4"></a><span class="fu">ggplot</span>(<span class="at">data =</span> dat2, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> height_in)) <span class="sc">+</span></span>
-<span id="cb8-5"><a href="#cb8-5"></a>    <span class="fu">geom_violin</span>() <span class="sc">+</span></span>
-<span id="cb8-6"><a href="#cb8-6"></a>    <span class="fu">geom_boxplot</span>(<span class="fu">aes</span>(<span class="at">fill =</span> year), <span class="at">width =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
-<span id="cb8-7"><a href="#cb8-7"></a>    <span class="fu">guides</span>(<span class="at">fill =</span> <span class="st">&quot;none&quot;</span>) <span class="sc">+</span></span>
-<span id="cb8-8"><a href="#cb8-8"></a>    <span class="fu">scale_fill_viridis_d</span>() <span class="sc">+</span></span>
-<span id="cb8-9"><a href="#cb8-9"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Heights of Dr. Love&#39;s students, by year&quot;</span>,</span>
-<span id="cb8-10"><a href="#cb8-10"></a>         <span class="at">subtitle =</span> <span class="st">&quot;2014 - 2023&quot;</span>, <span class="at">x =</span> <span class="st">&quot;Year&quot;</span>, <span class="at">y =</span> <span class="st">&quot;Height (in inches)&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1"></a>dat2 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span></span>
+<span id="cb10-2"><a href="#cb10-2"></a>    <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in))</span>
+<span id="cb10-3"><a href="#cb10-3"></a></span>
+<span id="cb10-4"><a href="#cb10-4"></a><span class="fu">ggplot</span>(<span class="at">data =</span> dat2, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> height_in)) <span class="sc">+</span></span>
+<span id="cb10-5"><a href="#cb10-5"></a>    <span class="fu">geom_violin</span>() <span class="sc">+</span></span>
+<span id="cb10-6"><a href="#cb10-6"></a>    <span class="fu">geom_boxplot</span>(<span class="fu">aes</span>(<span class="at">fill =</span> year), <span class="at">width =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb10-7"><a href="#cb10-7"></a>    <span class="fu">guides</span>(<span class="at">fill =</span> <span class="st">&quot;none&quot;</span>) <span class="sc">+</span></span>
+<span id="cb10-8"><a href="#cb10-8"></a>    <span class="fu">scale_fill_viridis_d</span>() <span class="sc">+</span></span>
+<span id="cb10-9"><a href="#cb10-9"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Heights of Dr. Love&#39;s students, by year&quot;</span>,</span>
+<span id="cb10-10"><a href="#cb10-10"></a>         <span class="at">subtitle =</span> <span class="st">&quot;2014 - 2023&quot;</span>, <span class="at">x =</span> <span class="st">&quot;Year&quot;</span>, <span class="at">y =</span> <span class="st">&quot;Height (in inches)&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 
 </section>
@@ -1416,10 +1458,10 @@ Thomas E. Love, Ph.D.
 <section id="table-of-means-and-standard-deviations" class="slide level2">
 <h2>Table of Means and Standard Deviations</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1"></a>qsdat <span class="sc">|&gt;</span></span>
-<span id="cb9-2"><a href="#cb9-2"></a>    <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
-<span id="cb9-3"><a href="#cb9-3"></a>    <span class="fu">group_by</span>(year) <span class="sc">|&gt;</span></span>
-<span id="cb9-4"><a href="#cb9-4"></a>    <span class="fu">summarize</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="at">mean =</span> <span class="fu">mean</span>(height_in), <span class="at">sd =</span> <span class="fu">sd</span>(height_in))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1"></a>qsdat <span class="sc">|&gt;</span></span>
+<span id="cb11-2"><a href="#cb11-2"></a>    <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
+<span id="cb11-3"><a href="#cb11-3"></a>    <span class="fu">group_by</span>(year) <span class="sc">|&gt;</span></span>
+<span id="cb11-4"><a href="#cb11-4"></a>    <span class="fu">summarize</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="at">mean =</span> <span class="fu">mean</span>(height_in), <span class="at">sd =</span> <span class="fu">sd</span>(height_in))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 10 × 4
    year      n  mean    sd
@@ -1484,15 +1526,15 @@ Thomas E. Love, Ph.D.
 <section id="histogram-of-2023-student-heights" class="slide level2">
 <h2>Histogram of 2023 Student Heights</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1"></a>dat3 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span></span>
-<span id="cb11-2"><a href="#cb11-2"></a>  <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
-<span id="cb11-3"><a href="#cb11-3"></a>  <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>)</span>
-<span id="cb11-4"><a href="#cb11-4"></a></span>
-<span id="cb11-5"><a href="#cb11-5"></a><span class="fu">ggplot</span>(<span class="at">data =</span> dat3, <span class="fu">aes</span>(<span class="at">x =</span> height_in)) <span class="sc">+</span></span>
-<span id="cb11-6"><a href="#cb11-6"></a>    <span class="fu">geom_histogram</span>(<span class="at">fill =</span> <span class="st">&quot;salmon&quot;</span>, <span class="at">col =</span> <span class="st">&quot;white&quot;</span>, <span class="at">binwidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
-<span id="cb11-7"><a href="#cb11-7"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Heights of Dr. Love&#39;s students&quot;</span>,</span>
-<span id="cb11-8"><a href="#cb11-8"></a>         <span class="at">subtitle =</span> <span class="st">&quot;2023 (n = 53 students with height data)&quot;</span>,</span>
-<span id="cb11-9"><a href="#cb11-9"></a>         <span class="at">y =</span> <span class="st">&quot;Number of Students&quot;</span>, <span class="at">x =</span> <span class="st">&quot;Height (inches)&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1"></a>dat3 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span></span>
+<span id="cb13-2"><a href="#cb13-2"></a>  <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
+<span id="cb13-3"><a href="#cb13-3"></a>  <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>)</span>
+<span id="cb13-4"><a href="#cb13-4"></a></span>
+<span id="cb13-5"><a href="#cb13-5"></a><span class="fu">ggplot</span>(<span class="at">data =</span> dat3, <span class="fu">aes</span>(<span class="at">x =</span> height_in)) <span class="sc">+</span></span>
+<span id="cb13-6"><a href="#cb13-6"></a>    <span class="fu">geom_histogram</span>(<span class="at">fill =</span> <span class="st">&quot;salmon&quot;</span>, <span class="at">col =</span> <span class="st">&quot;white&quot;</span>, <span class="at">binwidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb13-7"><a href="#cb13-7"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Heights of Dr. Love&#39;s students&quot;</span>,</span>
+<span id="cb13-8"><a href="#cb13-8"></a>         <span class="at">subtitle =</span> <span class="st">&quot;2023 (n = 53 students with height data)&quot;</span>,</span>
+<span id="cb13-9"><a href="#cb13-9"></a>         <span class="at">y =</span> <span class="st">&quot;Number of Students&quot;</span>, <span class="at">x =</span> <span class="st">&quot;Height (inches)&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 
 <ul>
@@ -1514,9 +1556,9 @@ Thomas E. Love, Ph.D.
 </ul></li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
-<span id="cb12-2"><a href="#cb12-2"></a>    <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb12-3"><a href="#cb12-3"></a>    <span class="fu">count</span>(height_in <span class="sc">&gt;=</span> <span class="dv">62</span> <span class="sc">&amp;</span> height_in <span class="sc">&lt;=</span> <span class="dv">70</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
+<span id="cb14-2"><a href="#cb14-2"></a>    <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb14-3"><a href="#cb14-3"></a>    <span class="fu">count</span>(height_in <span class="sc">&gt;=</span> <span class="dv">62</span> <span class="sc">&amp;</span> height_in <span class="sc">&lt;=</span> <span class="dv">70</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 2 × 2
   `height_in &gt;= 62 &amp; height_in &lt;= 70`     n
@@ -1524,7 +1566,7 @@ Thomas E. Love, Ph.D.
 1 FALSE                                  16
 2 TRUE                                   37</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1"></a><span class="dv">37</span><span class="sc">/</span>(<span class="dv">37</span><span class="sc">+</span><span class="dv">16</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1"></a><span class="dv">37</span><span class="sc">/</span>(<span class="dv">37</span><span class="sc">+</span><span class="dv">16</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 0.6981132</code></pre>
 </div>
@@ -1536,9 +1578,9 @@ Thomas E. Love, Ph.D.
 <li>How many of the 53 <code>height_in</code> values gathered in 2023 were between 66 - 2(4) = 58.0 and 66 + 2(4) = 74 inches?</li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
-<span id="cb16-2"><a href="#cb16-2"></a>    <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb16-3"><a href="#cb16-3"></a>    <span class="fu">count</span>(height_in <span class="sc">&gt;=</span> <span class="dv">58</span> <span class="sc">&amp;</span> height_in <span class="sc">&lt;=</span> <span class="dv">74</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
+<span id="cb18-2"><a href="#cb18-2"></a>    <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb18-3"><a href="#cb18-3"></a>    <span class="fu">count</span>(height_in <span class="sc">&gt;=</span> <span class="dv">58</span> <span class="sc">&amp;</span> height_in <span class="sc">&lt;=</span> <span class="dv">74</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 2 × 2
   `height_in &gt;= 58 &amp; height_in &lt;= 74`     n
@@ -1546,7 +1588,7 @@ Thomas E. Love, Ph.D.
 1 FALSE                                   1
 2 TRUE                                   52</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1"></a><span class="dv">52</span><span class="sc">/</span>(<span class="dv">52</span><span class="sc">+</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1"></a><span class="dv">52</span><span class="sc">/</span>(<span class="dv">52</span><span class="sc">+</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 0.9811321</code></pre>
 </div>
@@ -1558,16 +1600,16 @@ Thomas E. Love, Ph.D.
 <li>How many of the 53 <code>height_in</code> values gathered in 2023 were between 66 - 3(4) = 54 and 66 + 3(4) = 78 inches?</li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
-<span id="cb20-2"><a href="#cb20-2"></a>    <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb20-3"><a href="#cb20-3"></a>    <span class="fu">count</span>(height_in <span class="sc">&gt;=</span> <span class="dv">54</span> <span class="sc">&amp;</span> height_in <span class="sc">&lt;=</span> <span class="dv">78</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in)) <span class="sc">|&gt;</span></span>
+<span id="cb22-2"><a href="#cb22-2"></a>    <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb22-3"><a href="#cb22-3"></a>    <span class="fu">count</span>(height_in <span class="sc">&gt;=</span> <span class="dv">54</span> <span class="sc">&amp;</span> height_in <span class="sc">&lt;=</span> <span class="dv">78</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 1 × 2
   `height_in &gt;= 54 &amp; height_in &lt;= 78`     n
   &lt;lgl&gt;                               &lt;int&gt;
 1 TRUE                                   53</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1"></a><span class="dv">53</span><span class="sc">/</span>(<span class="dv">53</span><span class="sc">+</span><span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1"></a><span class="dv">53</span><span class="sc">/</span>(<span class="dv">53</span><span class="sc">+</span><span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 1</code></pre>
 </div>
@@ -1620,20 +1662,20 @@ Thomas E. Love, Ph.D.
 <section id="boxplots-of-height-and-of-pulse-rate" class="slide level2">
 <h2>Boxplots of Height and of Pulse Rate</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1"></a>dat4 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in), year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>)</span>
-<span id="cb24-2"><a href="#cb24-2"></a></span>
-<span id="cb24-3"><a href="#cb24-3"></a>p4 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> dat4, <span class="fu">aes</span>(<span class="at">x =</span> <span class="st">&quot;height (inches)&quot;</span>, <span class="at">y =</span> height_in)) <span class="sc">+</span></span>
-<span id="cb24-4"><a href="#cb24-4"></a>  <span class="fu">geom_violin</span>() <span class="sc">+</span> <span class="fu">geom_boxplot</span>(<span class="at">width =</span> <span class="fl">0.3</span>, <span class="at">fill =</span> <span class="st">&quot;tomato&quot;</span>) <span class="sc">+</span></span>
-<span id="cb24-5"><a href="#cb24-5"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Boxplot of 2023 Student Heights&quot;</span>, <span class="at">x =</span> <span class="st">&quot;&quot;</span>)</span>
-<span id="cb24-6"><a href="#cb24-6"></a></span>
-<span id="cb24-7"><a href="#cb24-7"></a>dat5 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(pulse), year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>)</span>
-<span id="cb24-8"><a href="#cb24-8"></a></span>
-<span id="cb24-9"><a href="#cb24-9"></a>p5 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> dat5, <span class="fu">aes</span>(<span class="at">x =</span> <span class="st">&quot;pulse rate (beats/minute)&quot;</span>, <span class="at">y =</span> pulse)) <span class="sc">+</span></span>
-<span id="cb24-10"><a href="#cb24-10"></a>  <span class="fu">geom_violin</span>() <span class="sc">+</span> <span class="fu">geom_boxplot</span>(<span class="at">width =</span> <span class="fl">0.3</span>, <span class="at">fill =</span> <span class="st">&quot;dodgerblue&quot;</span>) <span class="sc">+</span></span>
-<span id="cb24-11"><a href="#cb24-11"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Boxplot of 2023 Pulse Rates&quot;</span>, <span class="at">x =</span> <span class="st">&quot;&quot;</span>)</span>
-<span id="cb24-12"><a href="#cb24-12"></a></span>
-<span id="cb24-13"><a href="#cb24-13"></a>p4 <span class="sc">+</span> p5 <span class="sc">+</span> </span>
-<span id="cb24-14"><a href="#cb24-14"></a>  <span class="fu">plot_annotation</span>(<span class="at">title =</span> <span class="st">&quot;2023 Quick Survey Data&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1"></a>dat4 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_in), year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>)</span>
+<span id="cb26-2"><a href="#cb26-2"></a></span>
+<span id="cb26-3"><a href="#cb26-3"></a>p4 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> dat4, <span class="fu">aes</span>(<span class="at">x =</span> <span class="st">&quot;height (inches)&quot;</span>, <span class="at">y =</span> height_in)) <span class="sc">+</span></span>
+<span id="cb26-4"><a href="#cb26-4"></a>  <span class="fu">geom_violin</span>() <span class="sc">+</span> <span class="fu">geom_boxplot</span>(<span class="at">width =</span> <span class="fl">0.3</span>, <span class="at">fill =</span> <span class="st">&quot;tomato&quot;</span>) <span class="sc">+</span></span>
+<span id="cb26-5"><a href="#cb26-5"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Boxplot of 2023 Student Heights&quot;</span>, <span class="at">x =</span> <span class="st">&quot;&quot;</span>)</span>
+<span id="cb26-6"><a href="#cb26-6"></a></span>
+<span id="cb26-7"><a href="#cb26-7"></a>dat5 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(pulse), year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>)</span>
+<span id="cb26-8"><a href="#cb26-8"></a></span>
+<span id="cb26-9"><a href="#cb26-9"></a>p5 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> dat5, <span class="fu">aes</span>(<span class="at">x =</span> <span class="st">&quot;pulse rate (beats/minute)&quot;</span>, <span class="at">y =</span> pulse)) <span class="sc">+</span></span>
+<span id="cb26-10"><a href="#cb26-10"></a>  <span class="fu">geom_violin</span>() <span class="sc">+</span> <span class="fu">geom_boxplot</span>(<span class="at">width =</span> <span class="fl">0.3</span>, <span class="at">fill =</span> <span class="st">&quot;dodgerblue&quot;</span>) <span class="sc">+</span></span>
+<span id="cb26-11"><a href="#cb26-11"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Boxplot of 2023 Pulse Rates&quot;</span>, <span class="at">x =</span> <span class="st">&quot;&quot;</span>)</span>
+<span id="cb26-12"><a href="#cb26-12"></a></span>
+<span id="cb26-13"><a href="#cb26-13"></a>p4 <span class="sc">+</span> p5 <span class="sc">+</span> </span>
+<span id="cb26-14"><a href="#cb26-14"></a>  <span class="fu">plot_annotation</span>(<span class="at">title =</span> <span class="st">&quot;2023 Quick Survey Data&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 
 <ul>
@@ -1648,19 +1690,19 @@ Thomas E. Love, Ph.D.
 </div>
 </div></section><section id="normality-and-meansd-as-summaries" class="slide level2">
 <h2>Normality and Mean/SD as summaries</h2>
-<p>If the data are approximately Normally distributed (like <code>height_in</code> and <code>pulse</code>) we can safely use the sample mean and standard deviation as summaries. If not “Normal”, then …</p>
+<p>If the data are approximately Normally distributed, we can safely use the sample mean and standard deviation as summaries. If not “Normal”, then …</p>
 <ul>
 <li>The median is a more robust summary of the center.</li>
 <li>For spread, we often use the 25th and 75th percentiles.</li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1"></a>dat3 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>)</span>
-<span id="cb25-2"><a href="#cb25-2"></a>mosaic<span class="sc">::</span><span class="fu">favstats</span>(<span class="sc">~</span> height_in, <span class="at">data =</span> dat3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1"></a>dat3 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>)</span>
+<span id="cb27-2"><a href="#cb27-2"></a>mosaic<span class="sc">::</span><span class="fu">favstats</span>(<span class="sc">~</span> height_in, <span class="at">data =</span> dat3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> min Q1 median Q3 max     mean       sd  n missing
   60 64     65 69  77 66.00943 3.998185 53       0</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1"></a>mosaic<span class="sc">::</span><span class="fu">favstats</span>(<span class="sc">~</span> pulse, <span class="at">data =</span> dat3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1"></a>mosaic<span class="sc">::</span><span class="fu">favstats</span>(<span class="sc">~</span> pulse, <span class="at">data =</span> dat3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> min Q1 median   Q3 max     mean       sd  n missing
   54 68     76 85.5 112 78.15686 12.73165 51       2</code></pre>
@@ -1671,7 +1713,7 @@ Thomas E. Love, Ph.D.
 <h2>A new quantitative variable</h2>
 <p>Let’s look at haircut prices, across all years.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1"></a>mosaic<span class="sc">::</span><span class="fu">favstats</span>(<span class="sc">~</span> haircut, <span class="at">data =</span> qsdat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1"></a>mosaic<span class="sc">::</span><span class="fu">favstats</span>(<span class="sc">~</span> haircut, <span class="at">data =</span> qsdat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> min    Q1 median Q3 max     mean       sd   n missing
    0 13.25     22 40 250 30.84015 32.68273 538       9</code></pre>
@@ -1690,9 +1732,9 @@ Thomas E. Love, Ph.D.
 <div class="tab-content">
 <div id="tabset-1-1">
 <div class="cell">
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb31-2"><a href="#cb31-2"></a>  <span class="fu">select</span>(haircut) <span class="sc">|&gt;</span> </span>
-<span id="cb31-3"><a href="#cb31-3"></a>  <span class="fu">as.vector</span>() <span class="do">## just to print it here horizontally</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb33-2"><a href="#cb33-2"></a>  <span class="fu">select</span>(haircut) <span class="sc">|&gt;</span> </span>
+<span id="cb33-3"><a href="#cb33-3"></a>  <span class="fu">as.vector</span>() <span class="do">## just to print it here horizontally</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$haircut
  [1]   0.0  10.0  45.0 200.0  40.0  35.0  70.0  65.0  40.0   0.0  12.0   0.0
@@ -1705,9 +1747,9 @@ Thomas E. Love, Ph.D.
 </div>
 <div id="tabset-1-2">
 <div class="cell">
-<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb33-2"><a href="#cb33-2"></a>  <span class="fu">select</span>(haircut) <span class="sc">|&gt;</span> <span class="fu">arrange</span>(haircut) <span class="sc">|&gt;</span> </span>
-<span id="cb33-3"><a href="#cb33-3"></a>  <span class="fu">as.vector</span>() <span class="do">## just to print it here horizontally</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb35-2"><a href="#cb35-2"></a>  <span class="fu">select</span>(haircut) <span class="sc">|&gt;</span> <span class="fu">arrange</span>(haircut) <span class="sc">|&gt;</span> </span>
+<span id="cb35-3"><a href="#cb35-3"></a>  <span class="fu">as.vector</span>() <span class="do">## just to print it here horizontally</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$haircut
  [1]   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0
@@ -1720,8 +1762,8 @@ Thomas E. Love, Ph.D.
 </div>
 <div id="tabset-1-3">
 <div class="cell" data-df-print="paged">
-<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb35-2"><a href="#cb35-2"></a>  <span class="fu">count</span>(haircut) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb37-2"><a href="#cb37-2"></a>  <span class="fu">count</span>(haircut) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 27 × 2
    haircut     n
@@ -1746,7 +1788,7 @@ Thomas E. Love, Ph.D.
 <section id="haircut-prices-tabulated" class="slide level2">
 <h2>2023 Haircut Prices, tabulated</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> <span class="fu">tabyl</span>(haircut) <span class="sc">|&gt;</span> <span class="fu">adorn_pct_formatting</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> <span class="fu">tabyl</span>(haircut) <span class="sc">|&gt;</span> <span class="fu">adorn_pct_formatting</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> haircut  n percent
      0.0 12   22.6%
@@ -1782,20 +1824,20 @@ Thomas E. Love, Ph.D.
 <section id="normality-of-haircut-prices" class="slide level2">
 <h2>Normality of Haircut prices?</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1"></a>dat6 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(haircut))</span>
-<span id="cb39-2"><a href="#cb39-2"></a></span>
-<span id="cb39-3"><a href="#cb39-3"></a>p6a <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> dat6, <span class="fu">aes</span>(<span class="at">x =</span> haircut)) <span class="sc">+</span></span>
-<span id="cb39-4"><a href="#cb39-4"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="dv">5</span>, <span class="at">fill =</span> <span class="st">&quot;purple&quot;</span>, <span class="at">col =</span> <span class="st">&quot;white&quot;</span>) <span class="sc">+</span></span>
-<span id="cb39-5"><a href="#cb39-5"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;Haircut Price (in $)&quot;</span>)</span>
-<span id="cb39-6"><a href="#cb39-6"></a></span>
-<span id="cb39-7"><a href="#cb39-7"></a>p6b <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> dat6, <span class="fu">aes</span>(<span class="at">x =</span> haircut, <span class="at">y =</span> <span class="st">&quot;Price&quot;</span>)) <span class="sc">+</span></span>
-<span id="cb39-8"><a href="#cb39-8"></a>  <span class="fu">geom_violin</span>(<span class="at">fill =</span> <span class="st">&quot;plum&quot;</span>) <span class="sc">+</span> <span class="fu">geom_boxplot</span>(<span class="at">width =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
-<span id="cb39-9"><a href="#cb39-9"></a>  <span class="fu">labs</span>(<span class="at">y =</span> <span class="st">&quot;&quot;</span>, <span class="at">x =</span> <span class="st">&quot;Haircut Prices in $&quot;</span>)</span>
-<span id="cb39-10"><a href="#cb39-10"></a></span>
-<span id="cb39-11"><a href="#cb39-11"></a>p6a <span class="sc">+</span> p6b <span class="sc">+</span></span>
-<span id="cb39-12"><a href="#cb39-12"></a>  <span class="fu">plot_annotation</span>(</span>
-<span id="cb39-13"><a href="#cb39-13"></a>    <span class="at">title =</span> <span class="st">&quot;Histogram and Boxplot of Haircut Prices&quot;</span>,</span>
-<span id="cb39-14"><a href="#cb39-14"></a>    <span class="at">subtitle =</span> <span class="st">&quot;2014-2023 Students of Dr. Love in 431&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1"></a>dat6 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(haircut))</span>
+<span id="cb41-2"><a href="#cb41-2"></a></span>
+<span id="cb41-3"><a href="#cb41-3"></a>p6a <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> dat6, <span class="fu">aes</span>(<span class="at">x =</span> haircut)) <span class="sc">+</span></span>
+<span id="cb41-4"><a href="#cb41-4"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="dv">5</span>, <span class="at">fill =</span> <span class="st">&quot;purple&quot;</span>, <span class="at">col =</span> <span class="st">&quot;white&quot;</span>) <span class="sc">+</span></span>
+<span id="cb41-5"><a href="#cb41-5"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;Haircut Price (in $)&quot;</span>)</span>
+<span id="cb41-6"><a href="#cb41-6"></a></span>
+<span id="cb41-7"><a href="#cb41-7"></a>p6b <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> dat6, <span class="fu">aes</span>(<span class="at">x =</span> haircut, <span class="at">y =</span> <span class="st">&quot;Price&quot;</span>)) <span class="sc">+</span></span>
+<span id="cb41-8"><a href="#cb41-8"></a>  <span class="fu">geom_violin</span>(<span class="at">fill =</span> <span class="st">&quot;plum&quot;</span>) <span class="sc">+</span> <span class="fu">geom_boxplot</span>(<span class="at">width =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb41-9"><a href="#cb41-9"></a>  <span class="fu">labs</span>(<span class="at">y =</span> <span class="st">&quot;&quot;</span>, <span class="at">x =</span> <span class="st">&quot;Haircut Prices in $&quot;</span>)</span>
+<span id="cb41-10"><a href="#cb41-10"></a></span>
+<span id="cb41-11"><a href="#cb41-11"></a>p6a <span class="sc">+</span> p6b <span class="sc">+</span></span>
+<span id="cb41-12"><a href="#cb41-12"></a>  <span class="fu">plot_annotation</span>(</span>
+<span id="cb41-13"><a href="#cb41-13"></a>    <span class="at">title =</span> <span class="st">&quot;Histogram and Boxplot of Haircut Prices&quot;</span>,</span>
+<span id="cb41-14"><a href="#cb41-14"></a>    <span class="at">subtitle =</span> <span class="st">&quot;2014-2023 Students of Dr. Love in 431&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 
 <ul>
@@ -1809,7 +1851,7 @@ Thomas E. Love, Ph.D.
 </div></section><section id="stem-and-leaf-of-haircut-prices" class="slide level2">
 <h2>Stem-and-Leaf of Haircut Prices</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1"></a><span class="fu">stem</span>(qsdat<span class="sc">$</span>haircut, <span class="at">scale =</span> <span class="dv">2</span>) <span class="co"># scale makes plot twice as long as default</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1"></a><span class="fu">stem</span>(qsdat<span class="sc">$</span>haircut, <span class="at">scale =</span> <span class="dv">2</span>) <span class="co"># scale makes plot twice as long as default</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
   The decimal point is 1 digit(s) to the right of the |
@@ -1850,12 +1892,12 @@ Thomas E. Love, Ph.D.
 <h2>Empirical Rule Table for Haircut Prices</h2>
 <p>Let’s look across all years, as well as just in 2023</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1"></a>mosaic<span class="sc">::</span><span class="fu">favstats</span>(<span class="sc">~</span> haircut, <span class="at">data =</span> qsdat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1"></a>mosaic<span class="sc">::</span><span class="fu">favstats</span>(<span class="sc">~</span> haircut, <span class="at">data =</span> qsdat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> min    Q1 median Q3 max     mean       sd   n missing
    0 13.25     22 40 250 30.84015 32.68273 538       9</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1"></a>mosaic<span class="sc">::</span><span class="fu">favstats</span>(<span class="sc">~</span> haircut, <span class="at">data =</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1"></a>mosaic<span class="sc">::</span><span class="fu">favstats</span>(<span class="sc">~</span> haircut, <span class="at">data =</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> min  Q1 median Q3 max     mean       sd  n missing
    0 7.5     30 48 200 36.95283 42.50817 53       0</code></pre>
@@ -1901,20 +1943,20 @@ Thomas E. Love, Ph.D.
 <section id="how-did-i-calculate-those-fractions" class="slide level2">
 <h2>How did I calculate those fractions?</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1"></a><span class="co"># haircut price mean = 30.84 and sd = 32.68 across 2014-2023</span></span>
-<span id="cb46-2"><a href="#cb46-2"></a></span>
-<span id="cb46-3"><a href="#cb46-3"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">30.84</span> <span class="sc">-</span> <span class="fl">32.68</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">30.84</span> <span class="sc">+</span> <span class="fl">32.68</span>)</span>
-<span id="cb46-4"><a href="#cb46-4"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">30.84</span> <span class="sc">-</span> <span class="dv">2</span><span class="sc">*</span><span class="fl">32.68</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">30.84</span> <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span><span class="fl">32.68</span>)</span>
-<span id="cb46-5"><a href="#cb46-5"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">30.84</span> <span class="sc">-</span> <span class="dv">3</span><span class="sc">*</span><span class="fl">32.68</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">30.84</span> <span class="sc">+</span> <span class="dv">3</span><span class="sc">*</span><span class="fl">32.68</span>)</span>
-<span id="cb46-6"><a href="#cb46-6"></a></span>
-<span id="cb46-7"><a href="#cb46-7"></a><span class="co"># haircut price mean = 36.95 and sd = 42.51 in 2023 alone</span></span>
-<span id="cb46-8"><a href="#cb46-8"></a></span>
-<span id="cb46-9"><a href="#cb46-9"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb46-10"><a href="#cb46-10"></a>  <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">36.95</span> <span class="sc">-</span> <span class="fl">42.51</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">36.95</span> <span class="sc">+</span> <span class="fl">42.51</span>)</span>
-<span id="cb46-11"><a href="#cb46-11"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb46-12"><a href="#cb46-12"></a>  <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">36.95</span> <span class="sc">-</span> <span class="dv">2</span><span class="sc">*</span><span class="fl">42.51</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">36.95</span> <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span><span class="fl">42.51</span>)</span>
-<span id="cb46-13"><a href="#cb46-13"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb46-14"><a href="#cb46-14"></a>  <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">36.95</span> <span class="sc">-</span> <span class="dv">3</span><span class="sc">*</span><span class="fl">42.51</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">36.95</span> <span class="sc">+</span> <span class="dv">3</span><span class="sc">*</span><span class="fl">42.51</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1"></a><span class="co"># haircut price mean = 30.84 and sd = 32.68 across 2014-2023</span></span>
+<span id="cb48-2"><a href="#cb48-2"></a></span>
+<span id="cb48-3"><a href="#cb48-3"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">30.84</span> <span class="sc">-</span> <span class="fl">32.68</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">30.84</span> <span class="sc">+</span> <span class="fl">32.68</span>)</span>
+<span id="cb48-4"><a href="#cb48-4"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">30.84</span> <span class="sc">-</span> <span class="dv">2</span><span class="sc">*</span><span class="fl">32.68</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">30.84</span> <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span><span class="fl">32.68</span>)</span>
+<span id="cb48-5"><a href="#cb48-5"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">30.84</span> <span class="sc">-</span> <span class="dv">3</span><span class="sc">*</span><span class="fl">32.68</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">30.84</span> <span class="sc">+</span> <span class="dv">3</span><span class="sc">*</span><span class="fl">32.68</span>)</span>
+<span id="cb48-6"><a href="#cb48-6"></a></span>
+<span id="cb48-7"><a href="#cb48-7"></a><span class="co"># haircut price mean = 36.95 and sd = 42.51 in 2023 alone</span></span>
+<span id="cb48-8"><a href="#cb48-8"></a></span>
+<span id="cb48-9"><a href="#cb48-9"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb48-10"><a href="#cb48-10"></a>  <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">36.95</span> <span class="sc">-</span> <span class="fl">42.51</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">36.95</span> <span class="sc">+</span> <span class="fl">42.51</span>)</span>
+<span id="cb48-11"><a href="#cb48-11"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb48-12"><a href="#cb48-12"></a>  <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">36.95</span> <span class="sc">-</span> <span class="dv">2</span><span class="sc">*</span><span class="fl">42.51</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">36.95</span> <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span><span class="fl">42.51</span>)</span>
+<span id="cb48-13"><a href="#cb48-13"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb48-14"><a href="#cb48-14"></a>  <span class="fu">count</span>(haircut <span class="sc">&gt;=</span> <span class="fl">36.95</span> <span class="sc">-</span> <span class="dv">3</span><span class="sc">*</span><span class="fl">42.51</span> <span class="sc">&amp;</span> haircut <span class="sc">&lt;=</span> <span class="fl">36.95</span> <span class="sc">+</span> <span class="dv">3</span><span class="sc">*</span><span class="fl">42.51</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section></section>
 <section>
@@ -1929,9 +1971,9 @@ Thomas E. Love, Ph.D.
 <li>Convert our student heights from inches to centimeters…</li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1"></a>qsdat <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">height_cm =</span> height_in <span class="sc">*</span> <span class="fl">2.54</span>)</span>
-<span id="cb47-2"><a href="#cb47-2"></a></span>
-<span id="cb47-3"><a href="#cb47-3"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">select</span>(student, height_in, height_cm) <span class="sc">|&gt;</span> <span class="fu">head</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1"></a>qsdat <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">height_cm =</span> height_in <span class="sc">*</span> <span class="fl">2.54</span>)</span>
+<span id="cb49-2"><a href="#cb49-2"></a></span>
+<span id="cb49-3"><a href="#cb49-3"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">select</span>(student, height_in, height_cm) <span class="sc">|&gt;</span> <span class="fu">head</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 6 × 3
   student height_in height_cm
@@ -1948,8 +1990,8 @@ Thomas E. Love, Ph.D.
 <section id="initial-numerical-summaries" class="slide level2">
 <h2>Initial Numerical Summaries</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(haircut, height_cm)) <span class="sc">|&gt;</span></span>
-<span id="cb49-2"><a href="#cb49-2"></a>  <span class="fu">summarize</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="fu">median</span>(haircut), <span class="fu">median</span>(height_cm), <span class="fu">median</span>(height_in))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1"></a>qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(haircut, height_cm)) <span class="sc">|&gt;</span></span>
+<span id="cb51-2"><a href="#cb51-2"></a>  <span class="fu">summarize</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="fu">median</span>(haircut), <span class="fu">median</span>(height_cm), <span class="fu">median</span>(height_in))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 1 × 4
       n `median(haircut)` `median(height_cm)` `median(height_in)`
@@ -1964,15 +2006,15 @@ Thomas E. Love, Ph.D.
 <li>We’ll include the straight line from a linear model, in red.</li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1"></a>dat7 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_cm, haircut)) </span>
-<span id="cb51-2"><a href="#cb51-2"></a></span>
-<span id="cb51-3"><a href="#cb51-3"></a><span class="fu">ggplot</span>(dat7, <span class="fu">aes</span>(<span class="at">x =</span> height_cm, <span class="at">y =</span> haircut)) <span class="sc">+</span></span>
-<span id="cb51-4"><a href="#cb51-4"></a>    <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.3</span>) <span class="sc">+</span> </span>
-<span id="cb51-5"><a href="#cb51-5"></a>    <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">&quot;lm&quot;</span>, <span class="at">col =</span> <span class="st">&quot;red&quot;</span>,</span>
-<span id="cb51-6"><a href="#cb51-6"></a>                <span class="at">formula =</span> y <span class="sc">~</span> x, <span class="at">se =</span> <span class="cn">TRUE</span>) <span class="sc">+</span></span>
-<span id="cb51-7"><a href="#cb51-7"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;Height (in cm)&quot;</span>,</span>
-<span id="cb51-8"><a href="#cb51-8"></a>         <span class="at">y =</span> <span class="st">&quot;Price of last haircut (in $)&quot;</span>,</span>
-<span id="cb51-9"><a href="#cb51-9"></a>         <span class="at">title =</span> <span class="st">&quot;Do taller people pay less for haircuts?&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1"></a>dat7 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_cm, haircut)) </span>
+<span id="cb53-2"><a href="#cb53-2"></a></span>
+<span id="cb53-3"><a href="#cb53-3"></a><span class="fu">ggplot</span>(dat7, <span class="fu">aes</span>(<span class="at">x =</span> height_cm, <span class="at">y =</span> haircut)) <span class="sc">+</span></span>
+<span id="cb53-4"><a href="#cb53-4"></a>    <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.3</span>) <span class="sc">+</span> </span>
+<span id="cb53-5"><a href="#cb53-5"></a>    <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">&quot;lm&quot;</span>, <span class="at">col =</span> <span class="st">&quot;red&quot;</span>,</span>
+<span id="cb53-6"><a href="#cb53-6"></a>                <span class="at">formula =</span> y <span class="sc">~</span> x, <span class="at">se =</span> <span class="cn">TRUE</span>) <span class="sc">+</span></span>
+<span id="cb53-7"><a href="#cb53-7"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;Height (in cm)&quot;</span>,</span>
+<span id="cb53-8"><a href="#cb53-8"></a>         <span class="at">y =</span> <span class="st">&quot;Price of last haircut (in $)&quot;</span>,</span>
+<span id="cb53-9"><a href="#cb53-9"></a>         <span class="at">title =</span> <span class="st">&quot;Do taller people pay less for haircuts?&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 
 </section>
@@ -1983,11 +2025,11 @@ Thomas E. Love, Ph.D.
 </div></section><section id="what-is-the-pearson-correlation-of-height-and-haircut-price" class="slide level2">
 <h2>What is the (Pearson) correlation of height and haircut price?</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1"></a>dat7 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_cm, haircut)) </span>
-<span id="cb52-2"><a href="#cb52-2"></a></span>
-<span id="cb52-3"><a href="#cb52-3"></a>dat7 <span class="sc">|&gt;</span> </span>
-<span id="cb52-4"><a href="#cb52-4"></a>    <span class="fu">select</span>(height_in, height_cm, haircut) <span class="sc">|&gt;</span></span>
-<span id="cb52-5"><a href="#cb52-5"></a>    <span class="fu">cor</span>() </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb54"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1"></a>dat7 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_cm, haircut)) </span>
+<span id="cb54-2"><a href="#cb54-2"></a></span>
+<span id="cb54-3"><a href="#cb54-3"></a>dat7 <span class="sc">|&gt;</span> </span>
+<span id="cb54-4"><a href="#cb54-4"></a>    <span class="fu">select</span>(height_in, height_cm, haircut) <span class="sc">|&gt;</span></span>
+<span id="cb54-5"><a href="#cb54-5"></a>    <span class="fu">cor</span>() </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>           height_in  height_cm    haircut
 height_in  1.0000000  1.0000000 -0.1577709
@@ -1999,11 +2041,11 @@ haircut   -0.1577709 -0.1577709  1.0000000</code></pre>
 <section id="what-is-the-straight-line-regression-model" class="slide level2">
 <h2>What is the straight line regression model?</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb54"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1"></a>dat7 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_cm, haircut)) </span>
-<span id="cb54-2"><a href="#cb54-2"></a></span>
-<span id="cb54-3"><a href="#cb54-3"></a>mod1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(haircut <span class="sc">~</span> height_cm, <span class="at">data =</span> dat7)</span>
-<span id="cb54-4"><a href="#cb54-4"></a></span>
-<span id="cb54-5"><a href="#cb54-5"></a>mod1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb56"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1"></a>dat7 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_cm, haircut)) </span>
+<span id="cb56-2"><a href="#cb56-2"></a></span>
+<span id="cb56-3"><a href="#cb56-3"></a>mod1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(haircut <span class="sc">~</span> height_cm, <span class="at">data =</span> dat7)</span>
+<span id="cb56-4"><a href="#cb56-4"></a></span>
+<span id="cb56-5"><a href="#cb56-5"></a>mod1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 Call:
@@ -2018,7 +2060,7 @@ Coefficients:
 <section id="summarizing-our-model-mod1" class="slide level2">
 <h2>Summarizing our model <code>mod1</code></h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb56"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1"></a><span class="fu">summary</span>(mod1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb58"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1"></a><span class="fu">summary</span>(mod1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 Call:
@@ -2044,17 +2086,17 @@ F-statistic: 13.63 on 1 and 534 DF,  p-value: 0.0002453</code></pre>
 <section id="compare-lm-fit-to-loess-smooth-curve" class="slide level2">
 <h2>Compare <code>lm</code> fit to <code>loess</code> smooth curve?</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb58"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1"></a>dat7 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_cm, haircut)) </span>
-<span id="cb58-2"><a href="#cb58-2"></a></span>
-<span id="cb58-3"><a href="#cb58-3"></a><span class="fu">ggplot</span>(dat7, <span class="fu">aes</span>(<span class="at">x =</span> height_cm, <span class="at">y =</span> haircut)) <span class="sc">+</span></span>
-<span id="cb58-4"><a href="#cb58-4"></a>    <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span> </span>
-<span id="cb58-5"><a href="#cb58-5"></a>    <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">&quot;lm&quot;</span>, <span class="at">col =</span> <span class="st">&quot;red&quot;</span>,</span>
-<span id="cb58-6"><a href="#cb58-6"></a>                <span class="at">formula =</span> y <span class="sc">~</span> x, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
-<span id="cb58-7"><a href="#cb58-7"></a>    <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">&quot;loess&quot;</span>, <span class="at">col =</span> <span class="st">&quot;blue&quot;</span>,</span>
-<span id="cb58-8"><a href="#cb58-8"></a>                <span class="at">formula =</span> y <span class="sc">~</span> x, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
-<span id="cb58-9"><a href="#cb58-9"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;Height (in cm)&quot;</span>,</span>
-<span id="cb58-10"><a href="#cb58-10"></a>         <span class="at">y =</span> <span class="st">&quot;Price of last haircut (in $)&quot;</span>,</span>
-<span id="cb58-11"><a href="#cb58-11"></a>         <span class="at">title =</span> <span class="st">&quot;Do taller people pay less for haircuts?&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1"></a>dat7 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">complete.cases</span>(height_cm, haircut)) </span>
+<span id="cb60-2"><a href="#cb60-2"></a></span>
+<span id="cb60-3"><a href="#cb60-3"></a><span class="fu">ggplot</span>(dat7, <span class="fu">aes</span>(<span class="at">x =</span> height_cm, <span class="at">y =</span> haircut)) <span class="sc">+</span></span>
+<span id="cb60-4"><a href="#cb60-4"></a>    <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span> </span>
+<span id="cb60-5"><a href="#cb60-5"></a>    <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">&quot;lm&quot;</span>, <span class="at">col =</span> <span class="st">&quot;red&quot;</span>,</span>
+<span id="cb60-6"><a href="#cb60-6"></a>                <span class="at">formula =</span> y <span class="sc">~</span> x, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb60-7"><a href="#cb60-7"></a>    <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">&quot;loess&quot;</span>, <span class="at">col =</span> <span class="st">&quot;blue&quot;</span>,</span>
+<span id="cb60-8"><a href="#cb60-8"></a>                <span class="at">formula =</span> y <span class="sc">~</span> x, <span class="at">se =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb60-9"><a href="#cb60-9"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;Height (in cm)&quot;</span>,</span>
+<span id="cb60-10"><a href="#cb60-10"></a>         <span class="at">y =</span> <span class="st">&quot;Price of last haircut (in $)&quot;</span>,</span>
+<span id="cb60-11"><a href="#cb60-11"></a>         <span class="at">title =</span> <span class="st">&quot;Do taller people pay less for haircuts?&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 
 <ul>
@@ -2077,13 +2119,13 @@ F-statistic: 13.63 on 1 and 534 DF,  p-value: 0.0002453</code></pre>
 <li>Do students in the 2023 class have a more substantial history of tobacco use if they prefer to speak a language other than English?</li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb59"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1"></a>dat9 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> </span>
-<span id="cb59-2"><a href="#cb59-2"></a>    <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb59-3"><a href="#cb59-3"></a>    <span class="fu">filter</span>(<span class="fu">complete.cases</span>(english, smoke)) <span class="sc">|&gt;</span></span>
-<span id="cb59-4"><a href="#cb59-4"></a>    <span class="fu">select</span>(student, year, english, smoke)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1"></a>dat9 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> </span>
+<span id="cb61-2"><a href="#cb61-2"></a>    <span class="fu">filter</span>(year <span class="sc">==</span> <span class="st">&quot;2023&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb61-3"><a href="#cb61-3"></a>    <span class="fu">filter</span>(<span class="fu">complete.cases</span>(english, smoke)) <span class="sc">|&gt;</span></span>
+<span id="cb61-4"><a href="#cb61-4"></a>    <span class="fu">select</span>(student, year, english, smoke)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1"></a><span class="fu">summary</span>(dat9)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb62"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1"></a><span class="fu">summary</span>(dat9)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   student               year    english smoke 
  Length:51          2023   :51   y:37    1:47  
@@ -2099,13 +2141,13 @@ F-statistic: 13.63 on 1 and 534 DF,  p-value: 0.0002453</code></pre>
 <section id="tabulating-the-categorical-variables-individually" class="slide level2">
 <h2>Tabulating the categorical variables individually</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb62"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1"></a>dat9 <span class="sc">|&gt;</span> <span class="fu">tabyl</span>(english)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb64"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1"></a>dat9 <span class="sc">|&gt;</span> <span class="fu">tabyl</span>(english)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> english  n   percent
        y 37 0.7254902
        n 14 0.2745098</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb64"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1"></a>dat9 <span class="sc">|&gt;</span> <span class="fu">tabyl</span>(smoke) <span class="sc">|&gt;</span> <span class="fu">adorn_pct_formatting</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb66"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1"></a>dat9 <span class="sc">|&gt;</span> <span class="fu">tabyl</span>(smoke) <span class="sc">|&gt;</span> <span class="fu">adorn_pct_formatting</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> smoke  n percent
      1 47   92.2%
@@ -2120,7 +2162,7 @@ F-statistic: 13.63 on 1 and 534 DF,  p-value: 0.0002453</code></pre>
 <section id="cross-classification-2-rows-times-3-columns" class="slide level2">
 <h2>Cross-Classification <br> (2 rows <span class="math inline">\(\times\)</span> 3 columns)</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb66"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1"></a>dat9 <span class="sc">|&gt;</span> <span class="fu">tabyl</span>(english, smoke)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb68"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1"></a>dat9 <span class="sc">|&gt;</span> <span class="fu">tabyl</span>(english, smoke)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> english  1 2 3
        y 34 2 1
@@ -2131,13 +2173,13 @@ F-statistic: 13.63 on 1 and 534 DF,  p-value: 0.0002453</code></pre>
 <section id="recode-the-smoke-levels-to-more-meaningful-names-in-tobacco" class="slide level2">
 <h2>Recode the <code>smoke</code> levels to more meaningful names in <code>tobacco</code></h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb68"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1"></a>dat9 <span class="ot">&lt;-</span> dat9 <span class="sc">|&gt;</span> </span>
-<span id="cb68-2"><a href="#cb68-2"></a>    <span class="fu">mutate</span>(<span class="at">tobacco =</span> <span class="fu">fct_recode</span>(smoke, </span>
-<span id="cb68-3"><a href="#cb68-3"></a>            <span class="st">&quot;Never&quot;</span> <span class="ot">=</span> <span class="st">&quot;1&quot;</span>, <span class="st">&quot;Quit&quot;</span> <span class="ot">=</span> <span class="st">&quot;2&quot;</span>, <span class="st">&quot;Current&quot;</span> <span class="ot">=</span> <span class="st">&quot;3&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb70"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb70-1"><a href="#cb70-1"></a>dat9 <span class="ot">&lt;-</span> dat9 <span class="sc">|&gt;</span> </span>
+<span id="cb70-2"><a href="#cb70-2"></a>    <span class="fu">mutate</span>(<span class="at">tobacco =</span> <span class="fu">fct_recode</span>(smoke, </span>
+<span id="cb70-3"><a href="#cb70-3"></a>            <span class="st">&quot;Never&quot;</span> <span class="ot">=</span> <span class="st">&quot;1&quot;</span>, <span class="st">&quot;Quit&quot;</span> <span class="ot">=</span> <span class="st">&quot;2&quot;</span>, <span class="st">&quot;Current&quot;</span> <span class="ot">=</span> <span class="st">&quot;3&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <h3 id="check-our-work">Check our work?</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb69"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1"></a>dat9 <span class="sc">|&gt;</span> <span class="fu">count</span>(smoke, tobacco)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb71"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb71-1"><a href="#cb71-1"></a>dat9 <span class="sc">|&gt;</span> <span class="fu">count</span>(smoke, tobacco)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 3 × 3
   smoke tobacco     n
@@ -2155,8 +2197,8 @@ F-statistic: 13.63 on 1 and 534 DF,  p-value: 0.0002453</code></pre>
 <h2>Restate the cross-tabulation</h2>
 <p>Now we’ll use this new variable, and this time, add row and column totals.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb71"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb71-1"><a href="#cb71-1"></a>dat9 <span class="sc">|&gt;</span> <span class="fu">tabyl</span>(english, tobacco) <span class="sc">|&gt;</span> </span>
-<span id="cb71-2"><a href="#cb71-2"></a>    <span class="fu">adorn_totals</span>(<span class="at">where =</span> <span class="fu">c</span>(<span class="st">&quot;row&quot;</span>, <span class="st">&quot;col&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb73"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb73-1"><a href="#cb73-1"></a>dat9 <span class="sc">|&gt;</span> <span class="fu">tabyl</span>(english, tobacco) <span class="sc">|&gt;</span> </span>
+<span id="cb73-2"><a href="#cb73-2"></a>    <span class="fu">adorn_totals</span>(<span class="at">where =</span> <span class="fu">c</span>(<span class="st">&quot;row&quot;</span>, <span class="st">&quot;col&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> english Never Quit Current Total
        y    34    2       1    37
@@ -2171,14 +2213,14 @@ F-statistic: 13.63 on 1 and 534 DF,  p-value: 0.0002453</code></pre>
 <section id="how-about-in-2014-2023" class="slide level2">
 <h2>How about in 2014-2023?</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb73"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb73-1"><a href="#cb73-1"></a>dat8 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> </span>
-<span id="cb73-2"><a href="#cb73-2"></a>  <span class="fu">filter</span>(<span class="fu">complete.cases</span>(english, smoke)) <span class="sc">|&gt;</span></span>
-<span id="cb73-3"><a href="#cb73-3"></a>  <span class="fu">mutate</span>(<span class="at">tobacco =</span> <span class="fu">fct_recode</span>(smoke, </span>
-<span id="cb73-4"><a href="#cb73-4"></a>            <span class="st">&quot;Never&quot;</span> <span class="ot">=</span> <span class="st">&quot;1&quot;</span>, <span class="st">&quot;Quit&quot;</span> <span class="ot">=</span> <span class="st">&quot;2&quot;</span>, <span class="st">&quot;Current&quot;</span> <span class="ot">=</span> <span class="st">&quot;3&quot;</span>))</span>
-<span id="cb73-5"><a href="#cb73-5"></a></span>
-<span id="cb73-6"><a href="#cb73-6"></a>dat8 <span class="sc">|&gt;</span> </span>
-<span id="cb73-7"><a href="#cb73-7"></a>  <span class="fu">tabyl</span>(english, tobacco) <span class="sc">|&gt;</span> </span>
-<span id="cb73-8"><a href="#cb73-8"></a>  <span class="fu">adorn_totals</span>(<span class="at">where =</span> <span class="fu">c</span>(<span class="st">&quot;row&quot;</span>, <span class="st">&quot;col&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb75"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb75-1"><a href="#cb75-1"></a>dat8 <span class="ot">&lt;-</span> qsdat <span class="sc">|&gt;</span> </span>
+<span id="cb75-2"><a href="#cb75-2"></a>  <span class="fu">filter</span>(<span class="fu">complete.cases</span>(english, smoke)) <span class="sc">|&gt;</span></span>
+<span id="cb75-3"><a href="#cb75-3"></a>  <span class="fu">mutate</span>(<span class="at">tobacco =</span> <span class="fu">fct_recode</span>(smoke, </span>
+<span id="cb75-4"><a href="#cb75-4"></a>            <span class="st">&quot;Never&quot;</span> <span class="ot">=</span> <span class="st">&quot;1&quot;</span>, <span class="st">&quot;Quit&quot;</span> <span class="ot">=</span> <span class="st">&quot;2&quot;</span>, <span class="st">&quot;Current&quot;</span> <span class="ot">=</span> <span class="st">&quot;3&quot;</span>))</span>
+<span id="cb75-5"><a href="#cb75-5"></a></span>
+<span id="cb75-6"><a href="#cb75-6"></a>dat8 <span class="sc">|&gt;</span> </span>
+<span id="cb75-7"><a href="#cb75-7"></a>  <span class="fu">tabyl</span>(english, tobacco) <span class="sc">|&gt;</span> </span>
+<span id="cb75-8"><a href="#cb75-8"></a>  <span class="fu">adorn_totals</span>(<span class="at">where =</span> <span class="fu">c</span>(<span class="st">&quot;row&quot;</span>, <span class="st">&quot;col&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> english Never Quit Current Total
        y   393   28       5   426
@@ -2193,20 +2235,20 @@ F-statistic: 13.63 on 1 and 534 DF,  p-value: 0.0002453</code></pre>
 <section id="cleaning-up-the-temporary-objects" class="slide level2">
 <h2>Cleaning up the temporary objects</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb75"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb75-1"><a href="#cb75-1"></a><span class="fu">rm</span>(mod1,</span>
-<span id="cb75-2"><a href="#cb75-2"></a>   p4, p5, p6a, p6b,</span>
-<span id="cb75-3"><a href="#cb75-3"></a>   dat1, dat2, dat3, dat4, dat5, dat6, dat7, dat8, dat9</span>
-<span id="cb75-4"><a href="#cb75-4"></a>   )</span>
-<span id="cb75-5"><a href="#cb75-5"></a></span>
-<span id="cb75-6"><a href="#cb75-6"></a><span class="do">## this just leaves</span></span>
-<span id="cb75-7"><a href="#cb75-7"></a><span class="do">## qsdat and quicksur_raw in my Global Environment</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb77"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb77-1"><a href="#cb77-1"></a><span class="fu">rm</span>(mod1,</span>
+<span id="cb77-2"><a href="#cb77-2"></a>   p4, p5, p6a, p6b,</span>
+<span id="cb77-3"><a href="#cb77-3"></a>   dat1, dat2, dat3, dat4, dat5, dat6, dat7, dat8, dat9</span>
+<span id="cb77-4"><a href="#cb77-4"></a>   )</span>
+<span id="cb77-5"><a href="#cb77-5"></a></span>
+<span id="cb77-6"><a href="#cb77-6"></a><span class="do">## this just leaves</span></span>
+<span id="cb77-7"><a href="#cb77-7"></a><span class="do">## qsdat and quicksur_raw in my Global Environment</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="session-information" class="slide level2">
 <h2>Session Information</h2>
 <p>Don’t forget to close your file with the session information.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb76"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb76-1"><a href="#cb76-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb78"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb78-1"><a href="#cb78-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>─ Session info ───────────────────────────────────────────────────────────────
  setting  value
@@ -2218,7 +2260,7 @@ F-statistic: 13.63 on 1 and 534 DF,  p-value: 0.0002453</code></pre>
  collate  English_United States.utf8
  ctype    English_United States.utf8
  tz       America/New_York
- date     2023-09-06
+ date     2023-09-07
  pandoc   3.1.1 @ C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools/ (via rmarkdown)
 
 ─ Packages ───────────────────────────────────────────────────────────────────
