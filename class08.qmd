@@ -1,0 +1,690 @@
+---
+title: "431 Class 08"
+author: Thomas E. Love, Ph.D.
+date: "2023-09-21"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 08 | 2023-09-21 | <https://thomaselove.github.io/431-2023/>"
+---
+
+## Our Agenda {.smaller}
+
+- Ingesting the `dm1000` data using `read_excel()`
+- Working with Categorical Data
+    - Using factors and the `forcats` package (part of `tidyverse`)
+    - Building tables and `gt()`
+    - Building plots for categories with `geom_bar()` and `geom_count()`
+- Building a Model for a Scatterplot
+    - Fitting a Simple Linear Regression Model
+    - Power Transformations to improve Model Fit
+
+## Our R Packages
+
+```{r}
+#| message: false
+#| echo: true
+
+
+library(Epi) ## for twoby2() function
+library(gt) ## for making tables
+library(gtExtras) ## for fancier tables
+library(readxl) ## for ingesting Excel files
+library(broom)
+library(janitor)
+library(naniar) 
+library(patchwork)
+library(tidyverse) # always load tidyverse last
+
+theme_set(theme_test()) # trying a new theme
+knitr::opts_chunk$set(comment = NA)
+```
+
+- As usual, `#| message: false` silences messages here. 
+
+## Ingesting an Excel file
+
+Today, we'll use an Excel file (.xls, rather than .csv) to import the `dm1000` data.
+
+```{r}
+#| echo: true
+
+dm1000 <- read_excel("c08/data/dm_1000.xls") |>
+  clean_names() |>
+  mutate(across(where(is.character), as_factor)) |>
+  mutate(subject = as.character(subject))
+```
+
+- The `readxl` package is a non-core part of the tidyverse, and also includes functions called `read_xls()` and `read_xlsx()`. 
+- Visit <https://readxl.tidyverse.org/>.
+
+## The `dm1000` tibble
+
+```{r}
+#| echo: true
+
+dm1000
+```
+
+# Dealing with Categories
+
+## A Binary Variable
+
+```{r}
+#| echo: true
+dm1000 |> count(eye_exam)
+```
+
+### Can we make this a factor?
+
+```{r}
+#| echo: true
+
+dm1000 <- dm1000 |> 
+  mutate(eye_ex1 = factor(eye_exam))
+
+dm1000 |> count(eye_ex1, eye_exam)
+```
+
+## Using `fct_recode()` 
+
+Can we recode the 0/1 values into a factor with new names?
+
+```{r}
+#| echo: true
+
+dm1000 <- dm1000 |> 
+  mutate(eye_ex = fct_recode(factor(eye_exam), "No" = "0", "Yes" = "1"))
+
+dm1000 |> count(eye_ex, eye_exam)
+```
+
+```{r}
+#| echo: true
+
+dm1000 |> tabyl(eye_ex) |> adorn_pct_formatting() |> adorn_totals()
+```
+
+## Counting multiple categories
+
+```{r}
+#| echo: true
+
+dm1000 |> count(tobacco)
+
+dm1000 |> tabyl(tobacco) |> adorn_pct_formatting() |> adorn_totals()
+```
+
+- Does this ordering of tobacco levels make sense?
+
+## Changing Order of `tobacco` levels
+
+```{r}
+#| echo: true
+
+dm1000 <- dm1000 |> 
+  mutate(tobacco = fct_relevel(tobacco, "Current", "Former"))
+
+dm1000 |> tabyl(tobacco) |> adorn_pct_formatting() |> adorn_totals()
+```
+
+- Does this order make more sense?
+- `fct_relevel()` and `fct_recode()` come from the `forcats` package.
+
+## Using the `forcats` package
+
+- `fct_recode()`: manually specify new levels for the factor 
+- `fct_relevel()`: specify a new order manually for the levels of a factor
+- `fct_reorder()`: reordering a factor by another variable
+- `fct_infreq()`: reordering a factor by its frequency of values
+- `fct_lump()`: collapsing least frequent values into "other"
+- and several others
+
+## `forcats` references 
+
+1. I use the `forcats` tools frequently in our Course Notes
+2. <https://forcats.tidyverse.org/> forcats web page, especially [the vignette](https://forcats.tidyverse.org/articles/forcats.html)
+3. [Posit Cheat Sheet](https://posit.co/resources/cheatsheets/) on Factors with forcats.
+4. [R for Data Science on Factors](https://r4ds.hadley.nz/factors.html)
+
+## Using `gt` to make a table prettier
+
+```{r}
+#| echo: true
+
+dm1000 |> tabyl(tobacco) |> adorn_pct_formatting() |> adorn_totals() |> 
+  gt() |> tab_header(title = "Tobacco Status from dm1000")
+```
+
+- <https://gt.rstudio.com/> provides an amazing array of options.
+
+## Table Themes in `gtExtras`
+
+```{r}
+#| echo: true
+
+dm1000 |> tabyl(insurance) |> adorn_pct_formatting() |> adorn_totals() |> 
+  gt() |> 
+  gt_theme_nytimes() |> 
+  tab_header(title = "Table styled like the New York Times")
+```
+
+- There's also a `gt_theme_espn()`, `gt_theme_538` and several others within the `gtExtras` package.
+
+## `geom_bar()` to plot a factor
+
+```{r}
+#| echo: true
+
+ggplot(dm1000, aes(x = tobacco)) +
+  geom_bar()
+```
+
+## Choosing colors for `geom_bar` 
+
+```{r}
+#| echo: true
+
+tempdat <- dm1000 |> filter(complete.cases(tobacco))
+
+ggplot(data = tempdat, aes(x = tobacco, fill = tobacco)) +
+  geom_bar() + 
+  scale_fill_manual(
+    values = c(Current = "tomato", Former = "orange", Never = "pink")) 
+```
+
+## Adding Counts, Deleting Legend
+
+```{r}
+#| echo: true
+
+tempdat <- dm1000 |> filter(complete.cases(tobacco))
+
+ggplot(data = tempdat, aes(x = tobacco, fill = tobacco)) +
+  geom_bar() + 
+  geom_text(aes(y = after_stat(count), label = after_stat(count)), 
+            stat = "count", vjust = 1.5, col = "black", size = 8) +
+  scale_fill_manual(values = c("Current" = "tomato", 
+                               Former = "orange", Never = "pink")) +
+  guides(fill = "none")
+```
+
+# Two-Way Tables
+
+## `count` for two variables
+
+:::: {.columns}
+
+::: {.column width="50%"}
+
+```{r}
+#| echo: true
+
+dm1000 |> 
+  count(statin, tobacco)
+```
+
+:::
+
+::: {.column width="50%"}
+```{r}
+#| echo: true
+dm1000 |> 
+  count(insurance, residence)
+```
+:::
+
+::::
+
+## Specify factor orders
+
+```{r}
+#| echo: true 
+
+dm1000 <- dm1000 |>
+  mutate(residence = fct_relevel(residence, "Cleveland"),
+         insurance = fct_relevel(insurance, 
+                      "Medicare", "Commercial", "Medicaid"))
+
+dm1000 |> 
+  filter(complete.cases(insurance, residence)) |>
+  tabyl(residence, insurance) |>
+  adorn_totals(where = c("row", "col")) |> 
+  gt() |>
+  gt_theme_guardian()
+```
+
+## Were suburban residents more likely to have a statin prescription?
+
+```{r}
+#| echo: true
+
+dm1000 |> 
+  filter(complete.cases(statin, residence)) |>
+  tabyl(residence, statin) |>
+  adorn_totals(where = c("row", "col")) |> 
+  gt() |>
+  gt_theme_espn()
+```
+
+- Can we identify a useful answer here?
+- Would it help to change the order of these variables?
+
+## Revise variable orderings
+
+```{r}
+#| echo: true
+
+dm1000 |> filter(complete.cases(statin, residence)) |>
+  mutate(statin = 
+           fct_recode(factor(statin), "Statin" = "1", "No Statin" = "0"),
+         statin = fct_relevel(statin, "Statin"),
+         residence = fct_relevel(residence, "Suburbs")) |>
+  tabyl(residence, statin) |> 
+  adorn_totals(where = c("row", "col")) |> 
+  gt() |> 
+  gt_theme_dark()
+```
+
+## Table of Percentages by Residence
+
+```{r}
+#| echo: true
+
+dm1000 |> filter(complete.cases(statin, residence)) |>
+  mutate(statin = 
+           fct_recode(factor(statin), "Statin" = "1", "No Statin" = "0"),
+         statin = fct_relevel(statin, "Statin"),
+         residence = fct_relevel(residence, "Suburbs")) |>
+  tabyl(residence, statin) |> 
+  adorn_percentages(denom = "row") |> adorn_pct_formatting() |>
+  gt()
+```
+
+## Create using `table` instead
+
+```{r}
+#| echo: true
+
+tempdat1 <- dm1000 |> 
+  mutate(statin = 
+           fct_recode(factor(statin), "Statin" = "1", "No Statin" = "0"),
+         statin = fct_relevel(statin, "Statin"),
+         residence = fct_relevel(residence, "Suburbs"))
+
+tab1 <- table(tempdat1$residence, tempdat1$statin)
+
+tab1
+```
+
+## Analyzing a 2x2 table
+
+```{r}
+#| echo: true
+
+twoby2(tab1)  # twoby2() is part of the Epi package
+```
+
+## A 3x4 two-way table
+
+```{r}
+#| echo: true
+
+dm1000 |> filter(complete.cases(tobacco, insurance)) |>
+  tabyl(tobacco, insurance) |> gt()
+```
+
+- 3 rows, 4 columns: hence, this is a 3 x 4 table
+- It's a two-way table, because we are studying the association of two variables (`tobacco` and `insurance`)
+- Compare insurance percentages by tobacco group?
+
+## Insurance rates by tobacco group 
+
+```{r}
+#| echo: true
+
+dm1000 |> filter(complete.cases(tobacco, insurance)) |>
+  tabyl(tobacco, insurance) |> 
+  adorn_percentages(denominator = "row") |>
+  adorn_pct_formatting() |> 
+  gt()
+```
+
+- If you leave out `adorn_pct_formatting()`, you'll get proportions, which fall between 0 and 1: multiply by 100 for percentages.
+
+## Chi-Square Test of Association?
+
+```{r}
+#| echo: true
+
+tempdat2 <- dm1000 |> 
+  filter(complete.cases(tobacco, insurance)) 
+
+tab2 <- table(tempdat2$tobacco, tempdat2$insurance)
+
+tab2
+
+chisq.test(tab2)
+```
+
+# Three-Way Tables
+
+## Using `count` for three variables
+
+```{r}
+#| echo: true
+
+dm1000 |> count(sex, statin, residence)
+```
+
+
+## A three-way table via `tabyl`
+
+```{r}
+#| echo: true
+
+dm1000 |> 
+  filter(complete.cases(statin, residence, sex)) |>
+  tabyl(statin, residence, sex) |> 
+  adorn_totals(where = c("row", "col")) |>
+  adorn_title() 
+```
+
+## Flattening a three-way table
+
+```{r}
+#| echo: true
+
+ftable(dm1000$sex, dm1000$residence, dm1000$statin)
+```
+
+- Note that `ftable()` excludes the missing `residence` values by default.
+
+## Plotting a 3-Way Table (Counts)
+
+```{r}
+#| echo: true
+ggplot(data = filter(dm1000, complete.cases(residence)),
+       aes(x = residence, y = factor(statin))) +
+   geom_count() +
+   facet_wrap(~ sex, labeller = "label_both")
+```
+
+## Plotting a 3-Way Table (Jitter)
+
+```{r}
+#| echo: true
+ggplot(data = filter(dm1000, complete.cases(residence)),
+       aes(x = residence, y = sex)) +
+   geom_jitter() +
+   facet_wrap(~ statin, labeller = "label_both")
+```
+
+## Multi-categorical 3-Way Table
+
+```{r}
+#| echo: true
+dm1000 |> 
+  filter(complete.cases(insurance, race_ethnicity, tobacco)) |>
+  tabyl(race_ethnicity, insurance, tobacco) |> 
+  adorn_totals(where = c("row", "col")) |>
+  adorn_title()
+```
+
+## Multi-categorical 3-Way Counts
+
+```{r}
+#| echo: true
+ggplot(data = filter(dm1000, complete.cases(tobacco)),
+       aes(x = insurance, y = race_ethnicity)) +
+   geom_count() +
+   facet_wrap(~ tobacco, labeller = "label_both")
+```
+
+## Multi-categorical 3-Way Jitter Plot
+
+```{r}
+#| echo: true
+ggplot(data = filter(dm1000, complete.cases(tobacco)),
+       aes(x = insurance, y = race_ethnicity)) +
+   geom_jitter() +
+   facet_wrap(~ tobacco, labeller = "label_both")
+```
+
+# Building a Model for a Scatterplot
+
+## Scatterplot: Systolic vs. Diastolic BP
+
+Consider SBP vs. DBP in a scatterplot, adding a linear model.
+
+- What did we do here with `str_glue()`?
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+dm1000_ccbp <- dm1000 |> filter(complete.cases(sbp, dbp))
+
+ggplot(data = dm1000_ccbp, aes(x = dbp, y = sbp)) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  theme(aspect.ratio = 1) +
+  labs(x = "Diastolic BP (mm Hg)", y = "Systolic BP (mm Hg)",
+       title = "SBP and DBP are positively associated",
+       subtitle = str_glue(nrow(dm1000_ccbp), " Adults with Diabetes"),
+       caption = str_glue("Pearson correlation (SBP, DBP) is ",
+                    round_half_up(cor(dm1000_ccbp$sbp, dm1000_ccbp$dbp),3)))
+```
+
+## Fitting the Linear Regression Model
+
+```{r}
+#| echo: true
+
+m1 <- lm(sbp ~ dbp, data = dm1000_ccbp)
+
+summary(m1)
+```
+
+
+## Viewing the Linear Regression Model
+
+- `tidy()` comes from the `broom` package.
+
+```{r}
+#| echo: true
+
+m1 <- lm(sbp ~ dbp, data = dm1000_ccbp)
+
+tidy(m1)
+
+tidy(m1, conf.int = TRUE, conf.level = 0.90) |> 
+  gt() |> fmt_number(decimals = 3) |> gt_theme_espn()
+```
+
+## Assessing the Linear Model
+
+- `glance()` also comes from the `broom` package.
+
+```{r}
+#| echo: true
+
+m1 <- lm(sbp ~ dbp, data = dm1000_ccbp)
+
+glance(m1)
+
+glance(m1) |> 
+  round_half_up(digits = c(4, 4, 2, 2, 3, 0, 0, 1, 1, 0, 0, 0)) |> 
+  gt() |> gt_theme_dark()
+```
+
+## Two `m1` Residual Plots
+
+```{r}
+# echo: true
+
+par(mfrow = c(1,2)); plot(m1, which = 1:2); par(mfrow = c(1,1))
+```
+
+
+## SBP (transformed) vs. DBP
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+pow_1 <- ggplot(data = dm1000_ccbp, aes(x = dbp, y = 1/sbp)) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "1/SBP vs. DBP") + theme(aspect.ratio = 1)
+
+pow_2 <- ggplot(data = dm1000_ccbp, aes(x = dbp, y = log(sbp))) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "log(SBP) vs. DBP") + theme(aspect.ratio = 1)
+
+pow_3 <- ggplot(data = dm1000_ccbp, aes(x = dbp, y = sqrt(sbp))) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "sqrt(SBP) vs. DBP") + theme(aspect.ratio = 1)
+
+pow_4 <- ggplot(data = dm1000_ccbp, aes(x = dbp, y = sbp)) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "SBP vs. DBP") + theme(aspect.ratio = 1)
+
+pow_5 <- ggplot(data = dm1000_ccbp, aes(x = dbp, y = sbp^2)) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "SBP^2 vs. DBP") + theme(aspect.ratio = 1)
+
+pow_6 <- ggplot(data = dm1000_ccbp, aes(x = dbp, y = sbp^3)) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "SBP^3 vs. DBP") + theme(aspect.ratio = 1)
+
+(pow_1 + pow_2 + pow_3) / (pow_4 + pow_5 + pow_6)
+```
+
+## Ladder of Power Transformations
+
+If $y$ is strictly positive, we can apply transformations from this ladder to try to "linearize" the relationship between our outcome $y$ and our predictor $x$.
+
+ -1 | 0 | 1/2 | 1 | 2 | 3
+:------: | :------: | :------: | :------: | :------: | :------: 
+$\frac{1}{y}$ | $log(y)$ | $\sqrt{y}$ | $y$ | $y^2$ | $y^3$
+Inverse | Logarithm | Square Root | None | Square | Cube
+
+## Fitting 1/SBP vs. DBP
+
+```{r}
+#| echo: true
+m2 <- lm(1/sbp ~ dbp, data = dm1000_ccbp)
+
+par(mfrow = c(1,2)); plot(m2, which = 1:2); par(mfrow = c(1,1))
+```
+
+## Scatterplot: Weight vs. Height
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+dm1000_htwt <- dm1000 |> filter(complete.cases(ht, wt))
+
+ggplot(data = dm1000_htwt, aes(x = wt, y = ht)) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  theme(aspect.ratio = 1) +
+  labs(x = "Weight (in kg)", y = "Height (in m)",
+       title = "Weight and Height are positively associated",
+       subtitle = str_glue(nrow(dm1000_htwt), " Adults with Diabetes"),
+       caption = str_glue("Pearson correlation (Wt, Ht) is ",
+                    round_half_up(cor(dm1000_htwt$wt, dm1000_htwt$ht),3)))
+```
+
+## Weight predicted with Height?
+
+```{r}
+#| echo: true
+
+m3 <- lm(wt ~ ht, data = dm1000_htwt)
+
+tidy(m3, conf.int = TRUE, conf.level = 0.90) |> 
+  gt() |> fmt_number(decimals = 3) |> gt_theme_dark()
+
+glance(m3) |> 
+  round_half_up(digits = c(4, 4, 2, 2, 3, 0, 0, 1, 1, 0, 0, 0)) |> 
+  gt() |> gt_theme_dark()
+```
+
+
+## Weight vs. Height Residual Plots
+
+```{r}
+#| echo: true
+m3 <- lm(wt ~ ht, data = dm1000_ccbp)
+
+par(mfrow = c(1,2)); plot(m3, which = 1:2); par(mfrow = c(1,1))
+```
+
+## Weight (transformed) vs. Height
+
+```{r}
+pow_1 <- ggplot(data = dm1000_htwt, aes(x = ht, y = 1/wt)) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "1/Weight vs. Ht.") + theme(aspect.ratio = 1)
+
+pow_2 <- ggplot(data = dm1000_htwt, aes(x = ht, y = log(wt))) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "log(Weight) vs. Ht.") + theme(aspect.ratio = 1)
+
+pow_3 <- ggplot(data = dm1000_htwt, aes(x = ht, y = sqrt(wt))) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "sqrt(Weight) vs. Ht.") + theme(aspect.ratio = 1)
+
+pow_4 <- ggplot(data = dm1000_htwt, aes(x = ht, y = wt)) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "Weight vs. Ht.") + theme(aspect.ratio = 1)
+
+pow_5 <- ggplot(data = dm1000_htwt, aes(x = ht, y = wt^2)) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "Weight^2 vs. Ht.") + theme(aspect.ratio = 1)
+
+pow_6 <- ggplot(data = dm1000_htwt, aes(x = ht, y = wt^3)) +
+  geom_point(col = "gray50") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue", formula = y ~ x) +
+  geom_smooth(method = "lm", se = FALSE, col = "red", formula = y ~ x) +
+  labs(title = "Weight^3 vs. Ht.") + theme(aspect.ratio = 1)
+
+(pow_1 + pow_2 + pow_3) / (pow_4 + pow_5 + pow_6)
+```
+
+## Session Information
+
+```{r}
+#| echo: true
+sessioninfo::session_info()
+```
