@@ -904,7 +904,7 @@ tidy(m5, conf.int = T, conf.level = 0.9) |> gt()
 
 ## Ratings by Category
 
-- Comparing Action to Comedy again
+- Comparing Drama to Comedy again
 
 ```{r}
 #| echo: true
@@ -1006,7 +1006,7 @@ ggplot(movies23, aes(x = imdb_ratings/1000, y = imdb_stars)) +
   geom_point() +
   geom_smooth(method = "lm", se = TRUE, formula = y ~ x, col = "red") +
   geom_smooth(method = "loess", se = FALSE, formula = y ~ x, col = "blue") +
-  labs(x = "Length (in minutes)", y = "IMDB Ratings (thousands)",
+  labs(x = "IMDB Ratings (in thousands)", y = "IMDB Stars",
        title = "Favorite Movies: Number of Ratings and Stars",
        subtitle = str_glue("Pearson Correlation = ", round_half_up(
          cor(movies23$imdb_ratings, movies23$imdb_stars), 3)))
