@@ -1,0 +1,1031 @@
+---
+title: "431 Class 10"
+author: Thomas E. Love, Ph.D.
+date: "2023-09-28"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 10 | 2023-09-28 | <https://thomaselove.github.io/431-2023/>"
+---
+
+## Our Agenda 
+
+- Ingesting the favorite movies data
+- Cleaning and Managing the data
+- Addressing Your Exploratory Questions from the Class 8 Breakout
+
+## Today's R Packages
+
+```{r}
+#| message: false
+#| echo: true
+
+library(googlesheets4)
+library(broom)
+library(ggrepel)
+library(ggridges)
+library(gt)
+library(mosaic)
+library(janitor); library(naniar); library(patchwork)
+library(tidyverse)
+
+theme_set(theme_bw())
+options(width = 70)
+knitr::opts_chunk$set(comment = NA)
+```
+
+- `#| message: false` silences messages here. 
+
+# Ingesting the Data
+
+## Our Google Sheet
+
+![](c10/images/google_sheet_2023-09-14.png)
+
+## Ingesting from our Google Sheet
+
+```{r}
+#| echo: true
+
+gs4_deauth()
+
+movies23 <- 
+  read_sheet("https://docs.google.com/spreadsheets/d/1qJnQWSjXyOXFZOO8VZixpgZWbraUW66SfP5hE5bKW4k") |>
+  select(film_id, film, year, length, 
+         imdb_ratings, imdb_stars, imdb_categories) |>
+  mutate(film_id = as.character(film_id))
+
+dim(movies23)
+
+names(movies23)
+```
+
+## The favorite movies data
+
+```{r}
+#| echo: true
+movies23
+```
+
+## Broad Summary
+
+```{r}
+#| echo: true
+movies23 |> summary()
+
+pct_complete_case(movies23)  ## from naniar
+```
+
+## Your Questions (1-4)
+
+1. Are movies getting longer?	(`year`, `length`)
+2. Which categories/genres have higher ratings?	(`imdb_categories`, `imdb_stars`)
+3. Are longer movies rated more highly?	(`length`, `imdb_stars`)
+4. Which categories/genres have more ratings?	(`imdb_categories`, `imdb_ratings`)
+
+See [this link](https://github.com/THOMASELOVE/431-classes-2023/blob/main/movies/breakout1_results.md) for more details.
+
+## Your Questions (5-8)
+
+5. Do more recent movies get more ratings?	(`year`, `imdb_ratings`)
+6. Do more recent movies have higher ratings?	(`year`, `imdb_stars`)
+7. Are ratings and stars associated? (`imdb_ratings`, `imdb_stars`)
+8. Which years have the most movies in our sample? (`year`)
+
+See [this link](https://github.com/THOMASELOVE/431-classes-2023/blob/main/movies/breakout1_results.md) for more details.
+
+# Exploring and Cleaning Data
+
+## Basic Exploration: `year`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(data = movies23, aes(x = year)) +
+  geom_histogram(binwidth = 5, fill = "royalblue", col = "white") + 
+  labs(x = "Year of Release", y = "Number of Movies")
+
+p2 <- ggplot(data = movies23, aes(x = year, y = "")) +
+  geom_violin() +
+  geom_boxplot(fill = "royalblue", width = 0.3,
+               outlier.color = "royalblue", outlier.size = 3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "", x = "Year of Release")
+
+p1 / p2 + plot_layout(heights = c(2,1))
+```
+
+## Normal Q-Q plot for `year`
+
+```{r}
+#| echo: true
+
+ggplot(data = movies23, aes(sample = year)) +
+  geom_qq(col = "royalblue") + geom_qq_line(col = "red") +
+  theme(aspect.ratio = 1) +
+  labs(x = "Expected N(0,1)", y = "Year of Release")
+```
+
+## Consider `age` = 2023-`year`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+movies23 <- movies23 |> mutate(age = 2023 - year)
+
+p1 <- ggplot(data = movies23, aes(sample = age)) +
+  geom_qq(col = "steelblue") + geom_qq_line(col = "red") +
+  theme(aspect.ratio = 1) +
+  labs(x = "Expected N(0,1)", y = "Years Since Release")
+
+p2 <- ggplot(data = movies23, aes(x = age)) +
+  geom_histogram(bins = 10, fill = "steelblue", col = "white") + 
+  labs(x = "Years Since Release", y = "Number of Movies")
+
+p3 <- ggplot(data = movies23, aes(x = age, y = "")) +
+  geom_violin() +
+  geom_boxplot(fill = "steelblue", width = 0.3,
+               outlier.color = "steelblue", outlier.size = 3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "", x = "Years Since Release")
+
+p1 + (p2 / p3 + plot_layout(heights = c(2,1)))
+```
+
+## Consider $log(age+1)$
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+## add 1 to age, so all values are strictly positive
+## otherwise all of the log(zeros) show up as missing 
+
+p1 <- ggplot(data = movies23, aes(sample = log(age+1))) +
+  geom_qq(col = "cornflowerblue") + geom_qq_line(col = "red") +
+  theme(aspect.ratio = 1) +
+  labs(x = "Expected N(0,1)", y = "log(Years Since Release + 1)")
+
+p2 <- ggplot(data = movies23, aes(x = log(age + 1))) +
+  geom_histogram(bins = 10, fill = "cornflowerblue", col = "white") + 
+  labs(x = "log(Years Since Release + 1)", y = "Number of Movies")
+
+p3 <- ggplot(data = movies23, aes(x = log(age + 1), y = "")) +
+  geom_violin() +
+  geom_boxplot(fill = "cornflowerblue", width = 0.3,
+               outlier.color = "cornflowerblue", outlier.size = 3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "", x = "log(Years Since Release + 1)")
+
+p1 + (p2 / p3 + plot_layout(heights = c(2,1)))
+```
+
+## Consider $\sqrt{age}$ = square root
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+## Square root of 0 is just zero, so we're OK to plot sqrt(age)
+
+p1 <- ggplot(data = movies23, aes(sample = sqrt(age))) +
+  geom_qq(col = "slateblue") + geom_qq_line(col = "red") +
+  theme(aspect.ratio = 1) +
+  labs(x = "Expected N(0,1)", y = "sqrt(Years Since Release)")
+
+p2 <- ggplot(data = movies23, aes(x = sqrt(age))) +
+  geom_histogram(bins = 10, fill = "slateblue", col = "white") + 
+  labs(x = "sqrt(Years Since Release)", y = "Number of Movies")
+
+p3 <- ggplot(data = movies23, aes(x = sqrt(age), y = "")) +
+  geom_violin() +
+  geom_boxplot(fill = "slateblue", width = 0.3,
+               outlier.color = "slateblue", outlier.size = 3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "", x = "sqrt(Years Since Release)")
+
+p1 + (p2 / p3 + plot_layout(heights = c(2,1)))
+```
+
+## Some Numerical Summaries for `year`
+
+```{r}
+#| echo: true
+
+favstats(~ year, data = movies23)
+
+Hmisc::describe(movies23$year)
+```
+
+## What's the mode? 
+
+The **mode** is the most common value - the value that is most often observed. Note that this addresses your **Question 8**.
+
+```{r}
+#| echo: true
+movies23 |> count(year) |> arrange(desc(n))
+```
+
+## Oldest and Newest Movies?
+
+```{r}
+#| echo: true
+
+movies23 |> select(film, year) |> arrange(desc(year)) |> head(6)
+
+movies23 |> select(film, year) |> arrange(year) |> head(4)
+```
+
+## Additional Summaries for `year`
+
+```{r}
+#| echo: true
+movies23 |> summarise(skew1 = (mean(year) - median(year))/sd(year))
+
+movies23 |> count(year >= mean(year) - sd(year) &
+                    year <= mean(year) + sd(year))
+
+118/159
+```
+
+## Some Summaries for `sqrt(age)`
+
+```{r}
+#| echo: true
+
+favstats(~ sqrt(age), data = movies23)
+
+Hmisc::describe(sqrt(movies23$age))
+```
+
+## Additional Summaries for `sqrt(age)`
+
+```{r}
+#| echo: true
+movies23 |> 
+  summarise(skew1 = (mean(sqrt(age)) - median(sqrt(age)))/sd(sqrt(age)))
+
+movies23 |> count(sqrt(age) >= mean(sqrt(age)) - sd(sqrt(age)) &
+                    sqrt(age) <= mean(sqrt(age)) + sd(sqrt(age)))
+
+107/159
+```
+
+
+
+## Basic Exploration: `length`
+
+```{r}
+p1 <- ggplot(data = movies23, aes(sample = length)) +
+  geom_qq(col = "orchid") + geom_qq_line(col = "red") +
+  theme(aspect.ratio = 1) +
+  labs(x = "Expected N(0,1)", y = "Length in minutes")
+
+p2 <- ggplot(data = movies23, aes(x = length)) +
+  geom_histogram(bins = 10, fill = "orchid", col = "white") + 
+  labs(x = "Length in minutes", y = "Number of Movies")
+
+p3 <- ggplot(data = movies23, aes(x = length, y = "")) +
+  geom_violin() +
+  geom_boxplot(fill = "orchid", width = 0.3,
+               outlier.color = "orchid", outlier.size = 3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "", x = "Length in minutes")
+
+p1 + (p2 / p3 + plot_layout(heights = c(2,1)))
+```
+
+## Summarizing `length`
+
+```{r}
+#| echo: true
+
+favstats(~ length, data = movies23)
+
+Hmisc::describe(movies23$length)
+```
+
+## Longest / Shortest Movies?
+
+```{r}
+#| echo: true
+
+movies23 |> select(film, length) |> arrange(desc(length)) |> head(3)
+
+movies23 |> select(film, length) |> arrange(length) |> head(3)
+```
+
+
+## Exploring `imdb_ratings`
+
+```{r}
+p1 <- ggplot(data = movies23, aes(sample = imdb_ratings)) +
+  geom_qq(col = "darkorchid") + geom_qq_line(col = "red") +
+  theme(aspect.ratio = 1) +
+  labs(x = "Expected N(0,1)", y = "Number of IMDB Ratings")
+
+p2 <- ggplot(data = movies23, aes(x = imdb_ratings)) +
+  geom_histogram(bins = 10, fill = "darkorchid", col = "white") + 
+  labs(x = "Number of IMDB Ratings", y = "Number of Movies")
+
+p3 <- ggplot(data = movies23, aes(x = imdb_ratings, y = "")) +
+  geom_violin() +
+  geom_boxplot(fill = "darkorchid", width = 0.3,
+               outlier.color = "darkorchid", outlier.size = 3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "", x = "Number of IMDB Ratings")
+
+p1 + (p2 / p3 + plot_layout(heights = c(2,1)))
+```
+
+## Summaries for `imdb_ratings`
+
+```{r}
+#| echo: true
+
+favstats(~ imdb_ratings, data = movies23)
+
+Hmisc::describe(movies23$imdb_ratings)
+```
+
+## Most and Least rated movies?
+
+```{r}
+#| echo: true
+
+movies23 |> select(film, imdb_ratings) |> arrange(desc(imdb_ratings)) |> head(5)
+
+movies23 |> select(film, imdb_ratings) |> arrange(imdb_ratings) |> head(5)
+```
+
+## Exploring `imdb_stars`
+
+```{r}
+p1 <- ggplot(data = movies23, aes(sample = imdb_stars)) +
+  geom_qq(col = "goldenrod") + geom_qq_line(col = "red") +
+  theme(aspect.ratio = 1) +
+  labs(x = "Expected N(0,1)", y = "IMDB Stars")
+
+p2 <- ggplot(data = movies23, aes(x = imdb_stars)) +
+  geom_histogram(bins = 10, fill = "goldenrod", col = "white") + 
+  labs(x = "IMDB Stars", y = "Number of Movies")
+
+p3 <- ggplot(data = movies23, aes(x = imdb_stars, y = "")) +
+  geom_violin() +
+  geom_boxplot(fill = "goldenrod", width = 0.3,
+               outlier.color = "goldenrod", outlier.size = 3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "", x = "IMDB Stars")
+
+p1 + (p2 / p3 + plot_layout(heights = c(2,1)))
+```
+
+## Summaries for `imdb_stars`
+
+```{r}
+#| echo: true
+
+favstats(~ imdb_stars, data = movies23)
+
+Hmisc::describe(movies23$imdb_stars)
+```
+
+## Highest rated movies?
+
+```{r}
+#| echo: true
+
+movies23 |> select(film, imdb_stars) |> arrange(desc(imdb_stars)) |> head(11)
+```
+
+## Lowest rated movies?
+
+```{r}
+#| echo: true
+
+movies23 |> select(film, imdb_stars) |> arrange(imdb_stars) |> head(9)
+```
+
+# What can we do with `imdb_categories`?
+
+## What is in `imdb_categories`?
+
+```{r}
+#| echo: true
+movies23 |> tabyl(imdb_categories)
+```
+
+## Is `imdb_categories` useful?
+
+```{r}
+#| echo: true
+movies23 |> tabyl(imdb_categories) |> arrange(-n) |> adorn_pct_formatting()
+```
+
+## Split into separate columns?
+
+- Each movie has up to three categories identified in `imdb_categories`.
+- There are 20 different categories represented across our 201 movies.
+
+```{r}
+#| echo: true
+str_split_fixed(movies23$imdb_categories, ", ", n = 3) |> head()
+```
+
+## Can we create an indicator for Action?
+
+We want:
+
+- a variable which is 1 if the movie's `imdb_categories` list includes Action and 0 otherwise
+- and we'll call it `action`.
+
+```{r}
+#| echo: true
+movies23 <- movies23 |> 
+  mutate(action = as.numeric(str_detect(imdb_categories, fixed("Action"))))
+```
+
+## Check our coding?
+
+```{r}
+#| echo: true
+movies23 |> select(film_id, film, imdb_categories, action) |> slice(128:137)
+```
+
+## How many "Action" movies?
+
+```{r}
+#| echo: true
+movies23 |> tabyl(action) 
+```
+
+Actually, those are proportions, not percentages.
+
+```{r}
+#| echo: true
+movies23 |> tabyl(action) |> adorn_pct_formatting()
+```
+
+OK. We need to do this for all 20 genres specified in `imdb_categories`. 
+
+## Indicators of All 20 Genres
+
+```{r}
+#| echo: true
+
+movies23 <- movies23 |> 
+  mutate(action = as.numeric(str_detect(imdb_categories, fixed("Action"))),
+         adventure = as.numeric(str_detect(imdb_categories, fixed("Adventure"))),
+         animation = as.numeric(str_detect(imdb_categories, fixed("Animation"))),
+         biography = as.numeric(str_detect(imdb_categories, fixed("Biography"))),
+         comedy = as.numeric(str_detect(imdb_categories, fixed("Comedy"))),
+         crime = as.numeric(str_detect(imdb_categories, fixed("Crime"))),
+         drama = as.numeric(str_detect(imdb_categories, fixed("Drama"))),
+         family = as.numeric(str_detect(imdb_categories, fixed("Family"))),
+         fantasy = as.numeric(str_detect(imdb_categories, fixed("Fantasy"))),
+         history = as.numeric(str_detect(imdb_categories, fixed("History"))),
+         horror = as.numeric(str_detect(imdb_categories, fixed("Horror"))),
+         music = as.numeric(str_detect(imdb_categories, fixed("Music"))),
+         musical = as.numeric(str_detect(imdb_categories, fixed("Musical"))),
+         mystery = as.numeric(str_detect(imdb_categories, fixed("Mystery"))),
+         romance = as.numeric(str_detect(imdb_categories, fixed("Romance"))),
+         scifi = as.numeric(str_detect(imdb_categories, fixed("Sci-Fi"))),
+         sport = as.numeric(str_detect(imdb_categories, fixed("Sport"))),
+         thriller = as.numeric(str_detect(imdb_categories, fixed("Thriller"))),
+         war = as.numeric(str_detect(imdb_categories, fixed("War"))),
+         western = as.numeric(str_detect(imdb_categories, fixed("Western")))
+  )
+```
+
+## Summing Up Genres, Horizontally
+
+```{r}
+#| echo: true
+movies23 |> 
+  summarise(across(.cols = action:western, .fns = sum))
+```
+
+## Sorted Counts of Movies by Genre
+
+```{r}
+#| echo: true
+movies23 |> 
+  summarise(across(.cols = action:western, .fns = sum)) |>
+  t() |> as.data.frame() |> rename(count = V1) |> arrange(-count) 
+```
+
+# Question 1: Are movies getting longer?
+
+## Movie Lengths, over Time (ver. 1)
+
+Plot the association of `year` and `length`...
+
+```{r}
+#| echo: true
+
+ggplot(movies23, aes(x = year, y = length)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = F, formula = y ~ x, col = "blue") +
+  labs(x = "Year of Release", y = "Length (in minutes)",
+       title = "Favorite Movies: Length and Year of Release")
+```
+
+## Add the correlation in a subtitle
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| code-line-numbers : "7-8"
+
+ggplot(movies23, aes(x = year, y = length)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = F, formula = y ~ x, col = "blue") +
+  labs(x = "Year of Release", y = "Length (in minutes)",
+       title = "Favorite Movies: Length and Year of Release",
+       subtitle = str_glue("Pearson Correlation = ", round_half_up(
+         cor(movies23$year, movies23$length),3)))
+```
+
+## Use `film_id` labels instead of points
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| code-line-numbers : "1-2"
+
+ggplot(movies23, aes(x = year, y = length, label = film_id)) +
+  geom_label() +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = F, formula = y ~ x, col = "blue") +
+  labs(x = "Year of Release", y = "Length (in minutes)",
+       title = "Favorite Movies: Length and Year of Release",
+       subtitle = str_glue("Pearson Correlation = ", round_half_up(
+         cor(movies23$year, movies23$length),3)))
+```
+
+## Use text to show `film` names
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| code-line-numbers : "1-3"
+
+ggplot(movies23, aes(x = year, y = length, label = film)) +
+  geom_point(col = "coral") +
+  geom_text() +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = F, formula = y ~ x, col = "blue") +
+  labs(x = "Year of Release", y = "Length (in minutes)",
+       title = "Favorite Movies: Length and Year of Release",
+       subtitle = str_glue("Pearson Correlation = ", round_half_up(
+         cor(movies23$year, movies23$length),3)))
+```
+
+## Show `film` text for selected movies
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| code-line-numbers : "3"
+
+ggplot(movies23, aes(x = year, y = length, label = film)) +
+  geom_point(col = "coral") +
+  geom_text(data = movies23 |> filter(year < 1975 | length > 180)) +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = F, formula = y ~ x, col = "blue") +
+  labs(x = "Year of Release", y = "Length (in minutes)",
+       title = "Favorite Movies: Length and Year of Release",
+       subtitle = str_glue("Pearson Correlation = ", round_half_up(
+         cor(movies23$year, movies23$length),3)))
+```
+
+## Try `geom_text_repel()`
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| code-line-numbers : "3"
+
+ggplot(movies23, aes(x = year, y = length, label = film)) +
+  geom_point(col = "coral") +
+  geom_text_repel(data = movies23 |> filter(year < 1975 | length > 180)) +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = F, formula = y ~ x, col = "blue") +
+  labs(x = "Year of Release", y = "Length (in minutes)",
+       title = "Favorite Movies: Length and Year of Release",
+       subtitle = str_glue("Pearson Correlation = ", round_half_up(
+         cor(movies23$year, movies23$length),3)))
+```
+
+## `geom_label_repel` and colors?
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| code-line-numbers : "2-6"
+
+ggplot(movies23, aes(x = year, y = length, label = film)) +
+  geom_point(col = "coral") +
+  geom_point(data = movies23 |> filter(year < 1975 | length > 180), 
+             color = "darkgreen") +
+  geom_label_repel(data = movies23 |> filter(year < 1975 | length > 180), 
+                  color = "darkgreen") +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = F, formula = y ~ x, col = "blue") +
+  labs(x = "Year of Release", y = "Length (in minutes)",
+       title = "Favorite Movies: Length and Year of Release",
+       subtitle = str_glue("Pearson Correlation = ", round_half_up(
+         cor(movies23$year, movies23$length),3)))
+```
+
+## Model for Length, using Year?
+
+```{r}
+#| echo: true
+
+m1 <- lm(length ~ year, data = movies23)
+tidy(m1, conf.int = TRUE, conf.level = 0.90) |> gt()
+glance(m1) |> gt()
+```
+
+
+## Year and Length for Action/non-Action
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(movies23, aes(x = year, y = length, col = factor(action))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x, col = "red") +
+  facet_wrap(~ action, labeller = "label_both") +
+  guides(col = "none") +
+  scale_color_manual(values = c("plum", "steelblue")) +
+  labs(x = "Year of Release", y = "Length (in minutes)",
+       title = "Favorite Movies: Length and Year of Release",
+       subtitle = str_glue("Comparing Action movies (n = ", 
+                       sum(movies23$action), ") to All Others (n = ", 
+                       nrow(movies23) - sum(movies23$action), ")"))
+```
+
+## Year and Length for Adventure or Not?
+
+```{r}
+ggplot(movies23, aes(x = year, y = length, col = factor(adventure))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x, col = "red") +
+  facet_wrap(~ adventure, labeller = "label_both") +
+  guides(col = "none") +
+  scale_color_manual(values = c("seagreen", "slateblue")) +
+  labs(x = "Year of Release", y = "Length (in minutes)",
+       title = "Favorite Movies: Length and Year of Release",
+       subtitle = str_glue("Comparing Adventure movies (n = ", 
+                       sum(movies23$adventure), ") to All Others (n = ", 
+                       nrow(movies23) - sum(movies23$adventure), ")"))
+```
+
+## Interaction of Centered Year & Adventure
+
+```{r}
+#| echo: true
+movies23 <- movies23 |> mutate(year_c = year - mean(year))
+
+m2 <- lm(length ~ year_c * adventure, data = movies23)
+m2
+```
+
+## Coefficients and Summaries
+
+```{r}
+#| echo: true
+tidy(m2, conf.int = TRUE, conf.level = 0.90)
+glance(m2) |> select(r.squared, sigma, AIC, nobs, df, df.residual)
+```
+
+
+## Tweak the Question?
+
+Are movies made prior to 2000 longer or shorter than movies after 2000?
+
+```{r}
+#| echo: true
+#| output-location: slide
+movies23 <- movies23 |>
+  mutate(before2000 = factor(ifelse(year < 2000, "Early", "Late")))
+
+ggplot(movies23, aes(x = before2000, y = length)) +
+  geom_violin() +
+  geom_boxplot(aes(fill = before2000), notch = TRUE, 
+               width = 0.3, outlier.size = 3) +
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  scale_fill_viridis_d(alpha = 0.5) +
+  guides(fill = "none") +
+  coord_flip() +
+  labs(x = "", y = "Length (in minutes)")
+```
+
+## Meaningful difference in means?
+
+```{r}
+#| echo: true
+favstats(length ~ before2000, data = movies23) |> gt()
+
+m3 <- lm(length ~ before2000, data = movies23)
+tidy(m3, conf.int = T, conf.level = 0.90) |> gt() |> fmt_number(decimals = 3)
+glance(m3) |> 
+  round_half_up(digits = c(4, 4, 2, 2, 3, 0, 0, 1, 1, 0, 0, 0)) |> gt()
+```
+
+## Compare Means with Bootstrap?
+
+```{r}
+#| echo: true
+t.test(length ~ before2000, data = movies23, var.equal = TRUE, 
+       conf.int = TRUE, conf.level = 0.90) |> 
+  tidy() |> gt() |> fmt_number(decimals = 3)
+
+## need Love-boost.R for bootdif() function
+
+source("https://raw.githubusercontent.com/THOMASELOVE/431-data/main/data-and-code/Love-boost.R")
+
+set.seed(20230928)
+bootdif(y = movies23$length, g = movies23$before2000, 
+        conf.level = 0.90, B.reps = 1000) 
+```
+
+
+# Question 2: Which categories get higher ratings?
+
+## Do Dramas have higher ratings than Comedies?
+
+```{r}
+#| echo: true
+
+movies23 |> tabyl(comedy, drama) |> adorn_title()
+```
+
+::: {.incremental}
+- What should we do about this?
+- Exclude the Movies that are both, or neither (Approach A)
+- Include all of the Movies, making 4 categories (Approach B)
+:::
+
+## Approach A
+
+Do Dramas have higher ratings (more `imdb_stars`) than Comedies?
+
+- excluding the Movies that are both, or neither...
+
+```{r}
+#| echo: true
+mov_dc1 <- movies23 |>
+  filter(comedy + drama == 1)
+
+mov_dc1 |> tabyl(comedy, drama) |> adorn_title()
+```
+
+## Approach A (continued)
+
+```{r}
+#| echo: true
+mov_dc1 <- mov_dc1 |> 
+  mutate(genre = fct_recode(factor(comedy), "Comedy" = "1", "Drama" = "0"))
+
+mov_dc1 |> count(genre, comedy, drama)
+```
+
+## Approach A (Stars by Genre)
+
+```{r}
+#| echo: true
+
+ggplot(data = mov_dc1, aes(x = imdb_stars, y = genre, 
+                          fill = genre, height = after_stat(density))) +
+  geom_density_ridges(scale = 0.8) +
+  scale_fill_viridis_d(option = "A") + theme_ridges()
+```
+
+## Approach A (Stars by Genre)
+
+```{r}
+#| echo: true
+favstats(imdb_stars ~ genre, data = mov_dc1) |> gt()
+
+m4 <- lm(imdb_stars ~ genre, data = mov_dc1)
+
+tidy(m4, conf.int = T, conf.level = 0.9) |> gt()
+```
+
+## T test and Bootstrap 90% CIs?
+
+```{r}
+#| echo: true
+favstats(imdb_stars ~ genre, data = mov_dc1) |> gt()
+```
+
+```{r}
+#| echo: true
+t.test(imdb_stars ~ genre, data = mov_dc1,
+       var.equal = TRUE, conf.level = 0.90) |>
+  tidy(conf.int = TRUE) |> gt()
+```
+
+```{r}
+#| echo: true
+set.seed(4322023)
+bootdif(y = mov_dc1$imdb_stars, g = mov_dc1$genre, 
+        conf.level = 0.90, B.reps = 2000)
+```
+
+
+## Approach B
+
+Do Dramas have higher ratings (more `imdb_stars`) than Comedies?
+
+- including all of the Movies, creating four categories
+
+```{r}
+#| echo: true
+mov_dc2 <- movies23 |> 
+  mutate(genre4 = fct_recode(factor(10*comedy + drama),
+                             "Comedy only" = "10",
+                             "Drama only" = "1",
+                             "Both" = "11",
+                             "Neither" = "0"))
+```
+
+## Check that We Recoded Correctly
+
+```{r}
+#| echo: true
+mov_dc2 |> count(comedy, drama, genre4)
+```
+
+## Approach B (Stars by Genre) 
+
+```{r}
+#| echo: true
+
+ggplot(data = mov_dc2, aes(x = imdb_stars, y = genre4, 
+                          fill = genre4, height = after_stat(density))) +
+  geom_density_ridges(scale = 0.8) +
+  scale_fill_viridis_d(option = "A") + theme_ridges()
+```
+
+## Approach B (Stars by Genre)
+
+```{r}
+#| echo: true
+favstats(imdb_stars ~ genre4, data = mov_dc2) |> gt()
+
+m5 <- lm(imdb_stars ~ genre4, data = mov_dc2)
+tidy(m5, conf.int = T, conf.level = 0.9) |> gt()
+```
+
+# Question 4: Which categories get the most ratings?
+
+## Ratings by Category
+
+- Comparing Action to Comedy again
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(data = mov_dc2, aes(x = imdb_ratings/1000, y = genre4)) +
+  geom_violin(aes(fill = genre4)) +
+  geom_boxplot(width = 0.3, notch = TRUE, outlier.size = 2) +
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 21, size = 2, fill = "purple") +
+  scale_fill_brewer(palette = "Accent") +
+  guides(fill = "none") +
+  labs(x = "IMDB ratings (in 1000s)", y = "Genre",
+       title = "Boxplot with Violin for 201 Movies")
+```
+
+## Ridgeline Plot: IMDB Ratings
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(data = mov_dc2, aes(x = imdb_ratings/1000, y = genre4, 
+                          fill = genre4, height = after_stat(density))) +
+  geom_density_ridges(scale = 0.8) +
+  scale_fill_viridis_d(option = "D") + theme_ridges() +
+  guides(fill = "none") + 
+  labs(x = "IMDB Ratings (in thousands)")
+```
+
+
+
+# A Few More Scatterplots
+
+## Some Other Questions
+
+3. Are longer movies rated more highly?	(`length`, `imdb_stars`)
+5. Do more recent movies get more ratings?	(`year`, `imdb_ratings`)
+6. Do more recent movies have higher ratings?	(`year`, `imdb_stars`)
+7. Are ratings and stars associated? (`imdb_ratings`, `imdb_stars`)
+
+## Q3: Length vs. Average Rating?
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(movies23, aes(x = length, y = imdb_stars)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = FALSE, formula = y ~ x, col = "blue") +
+  labs(x = "Length (in minutes)", y = "IMDB Stars (0-10 scale)",
+       title = "Favorite Movies: Length and IMDB Stars",
+       subtitle = str_glue("Pearson Correlation = ", round_half_up(
+         cor(movies23$length, movies23$imdb_stars), 3)))
+```
+
+
+## Q5: Year vs. # of Star Ratings?
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(movies23, aes(x = year, y = imdb_ratings/1000)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = FALSE, formula = y ~ x, col = "blue") +
+  labs(x = "Year of Release", y = "IMDB Ratings (thousands)",
+       title = "Favorite Movies: IMDB Ratings and Year of Release",
+       subtitle = str_glue("Pearson Correlation = ", round_half_up(
+         cor(movies23$year, movies23$imdb_ratings), 3)))
+```
+
+## Q6: Year vs. Number of Stars?
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(movies23, aes(x = year, y = imdb_stars)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = FALSE, formula = y ~ x, col = "blue") +
+  labs(x = "Year of Release", y = "IMDB Stars",
+       title = "Favorite Movies: IMDB Stars and Year of Release",
+       subtitle = str_glue("Pearson Correlation = ", round_half_up(
+         cor(movies23$year, movies23$imdb_stars), 3)))
+```
+
+
+## Q7: Ratings vs. IMDB Stars?
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(movies23, aes(x = imdb_ratings/1000, y = imdb_stars)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x, col = "red") +
+  geom_smooth(method = "loess", se = FALSE, formula = y ~ x, col = "blue") +
+  labs(x = "Length (in minutes)", y = "IMDB Ratings (thousands)",
+       title = "Favorite Movies: Number of Ratings and Stars",
+       subtitle = str_glue("Pearson Correlation = ", round_half_up(
+         cor(movies23$imdb_ratings, movies23$imdb_stars), 3)))
+```
+
+## Session Information with `xfun`
+
+Either the `xfun` or `sessioninfo` version of `session_info()` can be used.
+
+```{r}
+#| echo: true
+xfun::session_info()
+```
+
+## Using `sessioninfo`
+
+Either the `xfun` or `sessioninfo` version of `session_info()` can be used.
+
+```{r}
+#| echo: true
+sessioninfo::session_info()
+```
