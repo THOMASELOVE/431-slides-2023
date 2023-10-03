@@ -1,0 +1,895 @@
+---
+title: "431 Class 11"
+author: Thomas E. Love, Ph.D.
+date: "2023-10-03"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 11 | 2023-10-03 | <https://thomaselove.github.io/431-2023/>"
+---
+
+## Today's Agenda
+
+- Pulling in data for a new example with `read_Rds()`
+- Exploring a quantity, broken down into > 2 subgroups
+  - Visualization gallery: comparison boxplot, faceted histograms, density and ridgeline plots
+  - Assessing the assumptions of regression (ANOVA) with residual plots
+- Intro: Using simple (single) imputation to deal with missing data
+- An Example to Work through on your own
+
+## Today's Setup
+
+```{r}
+#| echo: true
+
+knitr::opts_chunk$set(comment=NA)
+library(broom)               ## tidy, glance and (new) augment!
+library(ggridges)            ## help with ridgeline plots
+library(kableExtra)          ## tidy up tables of output
+library(janitor)
+library(mosaic)              ## for favstats
+library(naniar)
+library(simputation)         ## enable single imputation of NAs
+library(patchwork)
+library(tidyverse)
+
+theme_set(theme_bw())
+```
+
+
+## Today's Data
+
+Today, we'll use an R data set (`.Rds`) to import data.
+
+```{r}
+#| echo: true
+bs_dat <- read_rds("c11/data/blood_storage.Rds")
+```
+
+- This allows us to read in the data just as they were last saved in R, including "factoring", etc. 
+    - `readRDS()` also works but is a little slower.
+- To write an R data set, use `write_rds(datasetname, "locationoncomputer")`. 
+    - `saveRDS()` would also work, but slower.
+
+## The blood storage data set {.smaller}
+
+This study^[Cata et al. "Blood Storage Duration and Biochemical Recurrence of Cancer after Radical Prostatectomy". *Mayo Clinic Proceedings* 2011; 86(2): 120-127. <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3031436/>] evaluates the association between red blood cells (RBC) storage duration (categorized into three groups) and time (in months) to biochemical prostate cancer recurrence after radical prostatectomy. 
+
+In cancer patients, perioperative blood transfusion has long been suspected of reducing long-term survival, and it is suspected that cancer recurrence may be worsened after the transfusion of older blood.
+
+More complete versions of the data (along with more detailed explanations) appear in the [Cleveland Clinic's Statistical Education repository](https://www.lerner.ccf.org/qhs/datasets/), and in the `medicaldata` package in R. 
+
+## Codebook for `bs_dat` (n = 292)
+
+Variable | Description
+------: | :-----------------------------------------------
+`participant` | subject identification code
+`age_group` | younger, middle or older (RBC age exposure)
+`units` | number of allogeneic blood transfusion units received
+`recur_time` | time (months) to biochemical recurrence of prostate cancer
+
+Our sample includes participants who received 1-4 units.
+
+## What's in the Data?
+
+```{r}
+#| echo: true
+bs_dat
+```
+
+## Missing Values?
+
+```{r}
+#| echo: true
+miss_var_summary(bs_dat)
+```
+
+## Outcome is time to recurrence
+
+```{r}
+#| echo: true
+#| warning: false
+#| output-location: slide
+
+p1 <- ggplot(bs_dat, aes(sample = recur_time)) +
+  geom_qq(col = "dodgerblue") + 
+  geom_qq_line(col = "magenta") + 
+  theme(aspect.ratio = 1) + 
+  labs(title = "Normal Q-Q plot: recur_time")
+
+p2 <- ggplot(bs_dat, aes(x = recur_time)) +
+  geom_histogram(aes(y = stat(density)), 
+                 bins = 20, fill = "dodgerblue", col = "cyan") +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(bs_dat$recur_time, na.rm = TRUE), 
+                            sd = sd(bs_dat$recur_time, na.rm = TRUE)),
+                col = "magenta", lwd = 1.5) +
+  labs(title = "Density Function: recur_time")
+
+p3 <- ggplot(bs_dat, aes(x = recur_time, y = "")) +
+  geom_boxplot(fill = "dodgerblue", notch = TRUE, 
+               outlier.color = "dodgerblue") + 
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  labs(title = "Boxplot: recur_time", y = "")
+
+p1 + (p2 / p3 + plot_layout(heights = c(4,1)))
+```
+
+
+## Compare `recur_time` by `age_group`
+
+We'll start with a Complete Case Analysis that ignores any case with missing data.
+
+```{r}
+#| echo: true
+bs_cc <- bs_dat |> filter(complete.cases(age_group, recur_time, units))
+
+favstats(recur_time ~ age_group, data = bs_cc) |>
+  kbl(digits = 2) |> 
+  kable_styling(font_size = 28, full_width = FALSE)
+```
+
+## Scatterplot of `recur_time` vs. `age_group`
+
+```{r}
+#| echo: true
+ggplot(bs_cc, aes(x = age_group, y = recur_time)) +
+  geom_point() + geom_smooth(method = "lm", se = FALSE)
+```
+
+
+## Visualizing Strategies
+
+We're trying to look at the impact of `age_group` on `recur_time`.
+
+- Comparison Boxplot
+- Faceted Histograms
+- Overlapping Density Plot
+- Ridgeline Plot
+
+So let's walk through each of these.
+
+## Comparison Boxplot
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(data = bs_cc, aes(x = age_group, y = recur_time)) +
+  geom_violin() +
+  geom_boxplot(aes(fill = age_group), width = 0.3, 
+               notch = TRUE, outlier.size = 2) +
+  guides(fill = "none") +
+  coord_flip() +
+  scale_fill_viridis_d(alpha = 0.5) +
+  labs(y = "Recurrence Time (in months)",
+       x = "Red Blood Cell age group",
+       title = "Recurrence Time by RBC Age Group")
+```
+
+## Add MEANS to Comparison Boxplot
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| code-line-numbers: 5-6|13|
+
+ggplot(data = bs_cc, aes(x = age_group, y = recur_time)) +
+  geom_violin() +
+  geom_boxplot(aes(fill = age_group), width = 0.3, 
+               notch = TRUE, outlier.size = 2) +
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  guides(fill = "none") +
+  coord_flip() +
+  scale_fill_viridis_d(alpha = 0.5) +
+  labs(y = "Recurrence Time (in months)",
+       x = "Red Blood Cell age group",
+       title = "Recurrence Time by RBC Age Group",
+       caption = "Diamonds indicate sample means")
+```
+
+## Faceted Histograms
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(data = bs_cc, aes(x = recur_time, fill = age_group)) +
+  geom_histogram(bins = 20, col = "navy") +
+  guides(fill = "none") +
+  facet_grid(age_group ~ .) +
+  labs(x = "Recurrence Time (in months)",
+       title = "Recurrence Time by RBC Age Group")
+```
+
+## Comparing Densities
+
+```{r}
+#| echo: true
+ggplot(data = bs_cc, aes(x = recur_time, fill = age_group)) +
+  geom_density() + scale_fill_viridis_d(alpha = 0.5, option = "A") + 
+  labs(title = "Time to Recurrence, by RBC Age Group")
+```
+
+## Using a Ridgeline Plot
+
+```{r}
+#| echo: true
+ggplot(data = bs_cc, aes(x = recur_time, y = age_group, 
+                       fill = age_group)) +
+  geom_density_ridges(alpha = 0.5) +
+  guides(fill = "none") +
+  labs(title = "Time to Recurrence, by RBC Age Group")
+```
+
+## Model Recurrence Time using Age Group
+
+Again, we're using the complete cases here, from `bs_cc`.
+
+```{r}
+#| echo: true
+m1 <- lm(recur_time ~ age_group, data = bs_cc)
+
+m1
+```
+
+- Equation `m1` is: recur_time = 34.29 - 3.61 (age_group = Middle) - 0.52 (age_group = Older)
+
+## `m1` regression equation?
+
+recur_time = 34.29 - 3.61 (age_group = Middle) - 0.52 (age_group = Older)
+
+`age_group` | `m1` estimate of `recur_time` (months)
+-----------: | -------------:
+Younger |
+Middle |
+Older |
+
+---
+
+recur_time = 34.29 - 3.61 (age_group = Middle) - 0.52 (age_group = Older)
+
+`age_group` | `m1` estimate of `recur_time` (months)
+-----------: | -------------:
+Younger | 34.29
+Middle |
+Older |
+
+---
+
+recur_time = 34.29 - 3.61 (age_group = Middle) - 0.52 (age_group = Older)
+
+`age_group` | `m1` estimate of `recur_time` (months)
+-----------: | -------------:
+Younger | 34.29
+Middle | 34.29 - 3.61 = 30.68
+Older |
+
+---
+
+recur_time = 34.29 - 3.61 (age_group = Middle) - 0.52 (age_group = Older)
+
+`age_group` | `m1` estimate of `recur_time` (months)
+-----------: | -------------:
+Younger | 34.29
+Middle | 34.29 - 3.61 = 30.68
+Older | 34.29 - 0.52 = 33.77
+
+## Sample Means from `bs_cc`
+
+```{r}
+#| echo: true
+
+favstats(recur_time ~ age_group, data = bs_cc) |>
+  select(age_group, mean) |>
+  kbl(digits = 2) |> kable_styling(font_size = 28)
+```
+
+### Compare to `m1` estimates (some rounding)
+
+`age_group` | Younger | Middle | Older
+----: | ----: | ----: | ----:
+Est. `recur_time` | 34.29 | 30.68 | 33.77
+
+## Tidy coefficients with `broom` package
+
+```{r}
+#| echo: true
+tidy(m1, conf.int = TRUE, conf.level = 0.90) |> 
+  kbl(digits = 2) |> kable_styling(font_size = 28)
+```
+
+- What is the 90% CI for the population mean time to recurrence for `age_group` = Younger?
+- What is the 90% CI for the mean difference in time to recurrence between Younger and Middle?
+
+## `glance` to summarize `m1`'s fit
+
+```{r}
+#| echo: true
+
+glance(m1) |>
+  select(r.squared, AIC, sigma, nobs, df, df.residual) |>
+  kbl(digits = c(4, 1, 1, 0, 0, 0)) |> kable_styling(font_size = 28)
+```
+
+- `r.squared` = $R^2$, the proportion of variation in `recur_time` accounted for by the model using `age_group`. 
+  - indicates improvement over predicting mean(`recur_time`) for everyone
+- `sigma` = residual standard error 
+- `AIC` index: when comparing models with identical outcomes, lower AIC indicates a better fit
+
+## Get Fitted Values and Residuals
+
+```{r}
+#| echo: true
+m1_aug <- augment(m1, data = bs_cc)
+
+m1_aug |> 
+  select(participant, recur_time, age_group, .fitted, .resid) |> 
+  head() |> kbl(digits = 2) |> kable_styling(font_size = 28)
+```
+
+
+## Why I like `tidy()` and other `broom` functions
+
+![](c11/images/broom_package.png)
+
+<https://github.com/allisonhorst/stats-illustrations>
+
+## Linear Model Assumptions
+
+1. Linearity
+2. Homoscedasticity (Constant Variance)
+3. Normality
+
+all checked with residual plots
+
+## Linear Model Assumptions?
+
+We assume that:
+
+1. the regression relationship is linear, rather than curved, and we can assess this by plotting the regression residuals (prediction errors) against the fitted values and looking to see if a curve emerges.
+
+- Do we see a curve in the plot we draw next?
+
+## Plot residuals vs. fitted values from `m1`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(m1_aug, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "red",
+              formula = y ~ x, se = FALSE) + 
+  geom_smooth(method = "loess", col = "blue",
+              formula = y ~ x, se = FALSE) +
+  labs(title = "m1: Residuals vs. Fitted Values", 
+       x = "Fitted sbp values", y = "Residuals")
+```
+
+## Linear Model Assumptions?
+
+We assume that:
+
+2. the regression residuals show similar variance across levels of the fitted values, and again we can get insight into this by plotting residuals vs. predicted values.
+
+- Do we see a fan shape in the plot we draw next?
+- Does the variation change materially as we move from left to right?
+
+## Plot residuals vs. fitted values from `m1`
+
+```{r}
+ggplot(m1_aug, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "red",
+              formula = y ~ x, se = FALSE) + 
+  geom_smooth(method = "loess", col = "blue",
+              formula = y ~ x, se = FALSE) +
+  labs(title = "m1: Residuals vs. Fitted Values", 
+       x = "Fitted sbp values", y = "Residuals")
+```
+
+## A Fuzzy Football
+
+- What we want to see in the plot of residuals vs. fitted values is a "fuzzy football."
+
+![](c11/images/fuzzy_football.png)
+
+
+## Linear Model Assumptions?
+
+We assume that:
+
+3. the regression residuals (prediction errors) are well described by a Normal model, and we can assess this with all of our usual visualizations to help decide on whether a Normal model is reasonable for a batch of data.
+
+- Do the residuals from our model appear to follow a Normal distribution? 
+
+## Check Normality of `m1` residuals
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(m1_aug, aes(sample = .resid)) +
+  geom_qq(col = "seagreen") + geom_qq_line(col = "black") + 
+  theme(aspect.ratio = 1) + 
+  labs(title = "Normal Q-Q: 1050 `m1` Residuals")
+
+p2 <- ggplot(m1_aug, aes(x = .resid)) +
+  geom_histogram(aes(y = stat(density)), 
+                 bins = 20, fill = "seagreen", col = "yellow") +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(m1_aug$.resid), 
+                            sd = sd(m1_aug$.resid)),
+                col = "black", lwd = 1.5) +
+  labs(title = "Hist + Normal Density: `m1` Residuals")
+
+p3 <- ggplot(m1_aug, aes(x = .resid, y = "")) +
+  geom_boxplot(fill = "seagreen", outlier.color = "seagreen") + 
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +  
+  labs(title = "Boxplot: `m1` Residuals", y = "")
+
+p1 + (p2 / p3 + plot_layout(heights = c(4,1)))
+```
+
+## Numerical Summary of Residuals?
+
+```{r}
+#| echo: true
+
+favstats(~ .resid, data = m1_aug) |>
+  kbl(digits = 1) |> kable_styling(font_size = 24)
+```
+
+## Alternative `m1` residual plots?
+
+```{r}
+#| echo: true
+par(mfrow = c(1,2)); plot(m1, which = 1:2); par(mfrow = c(1,1))
+```
+
+
+# Imputation
+
+## Dealing with the Missing Data
+
+We have done all analyses on complete cases, but that's not always wise.
+
+- What if doing so would bias our conclusions?
+- Here we have two missing `age_group` values and one missing `recur_time`.
+
+It's scary to estimate these missing values. What could we do?
+
+## Single Imputation {.smaller}
+
+In single imputation analyses, NA values are estimated/replaced one time with one particular data value for the purpose of obtaining more complete samples, at the expense of creating some potential bias in the eventual conclusions or obtaining slightly less accurate estimates than would be available if there were no missing values in the data.
+
+- The `simputation` package can help us execute single imputations using a wide variety of techniques, within the pipe approach used by the tidyverse. 
+
+See Section 9.8 of the Course Notes for some additional examples.
+
+## Estimate missing values?
+
+```{r}
+#| echo: true
+bs_dat |> select(-participant) |> summary()
+```
+
+Which values are missing and must be imputed?
+
+## Create an imputation model
+
+The `simputation` package is our friend here. We'll use 
+
+- `impute_pmm()` to impute quantities, and 
+- `impute_cart()` to impute factors, for now.
+
+```{r}
+#| echo: true
+
+bs_imp <- bs_dat |>
+  impute_pmm(recur_time ~ age_group + units) |>
+  impute_cart(age_group ~ units)
+```
+
+We start with no missing `units` so we use that to impute `age_group`, then use both `age_group` and `units` to impute `recur_time`. Any missing data now?
+
+## Compare Results
+
+```{r}
+#| echo: true
+
+summary(bs_dat)
+summary(bs_imp)
+```
+
+## Model Time Using Age with `bs_imp`
+
+```{r}
+#| echo: true
+m1_imp <- lm(recur_time ~ age_group, data = bs_imp)
+
+m1_imp
+```
+
+## Compare Tidied Coefficients
+
+```{r}
+#| echo: true
+tidy(m1, conf.int = TRUE, conf.level = 0.90) |> 
+  kbl(digits = 2) |> kable_styling(font_size = 28)
+
+tidy(m1_imp, conf.int = TRUE, conf.level = 0.90) |> 
+  kbl(digits = 2) |> kable_styling(font_size = 28)
+```
+
+## Compare Summaries with `glance`
+
+```{r}
+#| echo: true
+glance(m1) |>
+  select(r.squared, AIC, sigma, nobs, df, df.residual) |>
+  kbl(digits = c(4, 1, 1, 0, 0, 0)) |> kable_styling(font_size = 28)
+
+glance(m1_imp) |>
+  select(r.squared, AIC, sigma, nobs, df, df.residual) |>
+  kbl(digits = c(4, 1, 1, 0, 0, 0)) |> kable_styling(font_size = 28)
+```
+
+But these two models **do not** have the same outcomes. Why not? What does this mean about comparing the glance results?
+
+## Three Types of Missingness
+
+1. MCAR = Missingness completely at random. 
+
+A variable is missing completely at random if the probability of missingness is the same for all units, for example, if for each subject, we decide whether to collect data on a measure by rolling a die and refusing to answer if a “6” shows up. If data are missing completely at random, then throwing out cases with missing data (i.e. doing a complete case analysis) does not bias your inferences.
+
+## Three Types of Missingness
+
+2. MAR = Missingness at random. 
+
+Missingness that depends only on observed predictors. A more general assumption, called missing at random or MAR, is that the probability a variable is missing depends only on available information. Here, we would have to be willing to assume that the probability of nonresponse to depends only on the other, fully recorded variables in the data. 
+
+- Here is the situation that most obviously cries out for imputation.
+
+## Three Types of Missingness
+
+3. Missing not at random
+
+This is a bigger problem, and includes both:
+
+- Missingness that depends on unobserved predictors. Missingness is no longer “at random” if it depends on information that has not been recorded and this information also predicts the missing values. 
+- Missingness that depends on the missing value itself. For example, suppose that people with higher earnings are less likely to reveal them.
+
+# OK, back to working with complete cases
+
+## Back to our Comparison Boxplot
+
+- Does comparing means make sense here? 
+- Are these sample distributions "Normal-ish"?
+
+```{r}
+ggplot(data = bs_cc, aes(x = age_group, y = recur_time)) +
+  geom_violin() +
+  geom_boxplot(aes(fill = age_group), width = 0.3, 
+               notch = TRUE, outlier.size = 2) +
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  guides(fill = "none") +
+  coord_flip() +
+  scale_fill_viridis_d(alpha = 0.5) +
+  labs(y = "Recurrence Time (in months)",
+       x = "Red Blood Cell age group",
+       title = "Recurrence Time by RBC Age Group",
+       caption = "Diamonds indicate sample means")
+```
+
+## Would a Transformation Help Us?
+
+```{r}
+#| echo: true
+favstats(~ recur_time, data = bs_cc)
+```
+
+Since all `recur_time` values are positive, we might look at:
+
+$log(time)$, or $1/time$, or $\sqrt{time}$, or $time^2$, for example...
+
+What are we hoping these transformations will do?
+
+## Boxplot 0: `recur_time` by `age_group`
+
+```{r}
+ggplot(data = bs_cc, aes(x = age_group, y = recur_time)) +
+  geom_violin() +
+  geom_boxplot(aes(fill = age_group), width = 0.3, 
+               notch = TRUE, outlier.size = 2) +
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  guides(fill = "none") +
+  coord_flip() +
+  scale_fill_viridis_d(alpha = 0.5) +
+  labs(y = "Recurrence Time (in months)",
+       x = "Red Blood Cell age group",
+       title = "Recurrence Time by RBC Age Group",
+       caption = "Diamonds indicate sample means")
+```
+
+
+## Boxplot 1: `log(recur_time)` by `age_group`
+
+```{r}
+ggplot(data = bs_cc, aes(x = age_group, y = log(recur_time))) +
+  geom_violin() +
+  geom_boxplot(aes(fill = age_group), width = 0.3, 
+               notch = TRUE, outlier.size = 2) +
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  guides(fill = "none") +
+  coord_flip() +
+  scale_fill_viridis_d(alpha = 0.5) +
+  labs(y = "Natural Log of Recurrence Time",
+       x = "Red Blood Cell age group",
+       title = "Natural Log of Recurrence Time by RBC Age Group",
+       caption = "Diamonds indicate sample means")
+```
+
+## Boxplot 2: `1/(recur_time)` by `age_group`
+
+```{r}
+ggplot(data = bs_cc, aes(x = age_group, y = 1/(recur_time))) +
+  geom_violin() +
+  geom_boxplot(aes(fill = age_group), width = 0.3, 
+               notch = TRUE, outlier.size = 2) +
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  guides(fill = "none") +
+  coord_flip() +
+  scale_fill_viridis_d(alpha = 0.5) +
+  labs(y = "Inverse of Recurrence Time",
+       x = "Red Blood Cell age group",
+       title = "Inverse of Recurrence Time by RBC Age Group",
+       caption = "Diamonds indicate sample means")
+```
+
+## Boxplot 3: $\sqrt{time}$ by `age_group`
+
+```{r}
+ggplot(data = bs_cc, aes(x = age_group, y = sqrt(recur_time))) +
+  geom_violin() +
+  geom_boxplot(aes(fill = age_group), width = 0.3, 
+               notch = TRUE, outlier.size = 2) +
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  guides(fill = "none") +
+  coord_flip() +
+  scale_fill_viridis_d(alpha = 0.5) +
+  labs(y = "Square Root of Recurrence Time",
+       x = "Red Blood Cell age group",
+       title = "Square Root of Recurrence Time by RBC Age Group",
+       caption = "Diamonds indicate sample means")
+```
+
+## Code for Boxplot 3
+
+```{r}
+#| echo: true
+#| eval: false
+
+ggplot(data = bs_cc, aes(x = age_group, y = sqrt(recur_time))) +
+  geom_violin() +
+  geom_boxplot(aes(fill = age_group), width = 0.3, 
+               notch = TRUE, outlier.size = 2) +
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  guides(fill = "none") +
+  coord_flip() +
+  scale_fill_viridis_d(alpha = 0.5) +
+  labs(y = "Square Root of Recurrence Time",
+       x = "Red Blood Cell age group",
+       title = "Square Root of Recurrence Time by RBC Age Group",
+       caption = "Diamonds indicate sample means")
+```
+
+## Ridgeline Plot for $\sqrt{time}$?
+
+```{r}
+#| echo: true
+
+ggplot(data = bs_cc, aes(x = sqrt(recur_time), y = age_group, 
+                       fill = age_group)) +
+  geom_density_ridges(alpha = 0.5) +
+  guides(fill = "none") +
+  labs(title = "Square Root of Time to Recurrence, by RBC Age Group")
+```
+
+
+## Fit a Model to predict $\sqrt{time}$?
+
+```{r}
+#| echo: true
+m2 <- lm(sqrt(recur_time) ~ age_group, data = bs_cc)
+
+m2
+```
+
+## Predicted Values using `m2`
+
+sqrt(recur_time) = 5.17 - 0.299 (age_group = Middle) + 0.014 (age_group = Older)
+
+age_group | Est. $\sqrt{time}$ | Est. `recur_time`
+-----: | ----------: | ---------:
+Younger | 5.17 | ?
+Middle | 5.17 - 0.299 = 4.871 | ?
+Older | ? | ?
+
+## Predicted `recur_time` using `m2`
+
+sqrt(recur_time) = 5.17 - 0.299 (age_group = Middle) + 0.014 (age_group = Older)
+
+age_group | Est. $\sqrt{time}$ | Est. `recur_time`
+-----: | ----------: | ---------:
+Younger | 5.17 | 26.73
+Middle | 5.17 - 0.299 = 4.871 | 23.73
+Older | 5.17 + 0.014 = 5.184 | 26.87
+
+## Tidy model `m2`
+
+```{r}
+#| echo: true
+
+tidy(m2, conf.int = TRUE, conf.level = 0.90) |> 
+  kbl(digits = 2) |> kable_styling(font_size = 28)
+```
+
+### `glance` to summarize `m2`'s fit
+
+```{r}
+#| echo: true
+
+glance(m2) |>
+  select(r.squared, AIC, sigma, nobs, df, df.residual) |>
+  kbl(digits = c(4, 1, 1, 0, 0, 0)) |> kable_styling(font_size = 28)
+```
+
+## `m2`: first two residual plots
+
+```{r}
+#| echo: true
+par(mfrow = c(1,2)); plot(m2, which = 1:2); par(mfrow = c(1,1))
+```
+
+# An Example to Work through on your own
+
+## Predict time with `units`
+
+Some data prep required:
+
+- `units` is actually a count.
+- Use all 291 observations with `recur_time` and `units`.
+
+```{r}
+#| echo: true
+bs_dat2 <- bs_dat |>
+  filter(complete.cases(recur_time, units))
+
+bs_dat2 |> tabyl(units)
+```
+
+## Scatterplot of `recur_time` vs. `age_group`
+
+```{r}
+#| echo: true
+ggplot(bs_dat2, aes(x = age_group, y = recur_time)) +
+  geom_point() + geom_smooth(method = "lm", se = FALSE)
+```
+
+
+## Comparison Boxplot
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(data = bs_dat2, aes(x = factor(units), y = recur_time)) +
+  geom_violin() +
+  geom_boxplot(aes(fill = factor(units)), width = 0.3, 
+               outlier.size = 2) +
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  guides(fill = "none") +
+  coord_flip() +
+  scale_fill_viridis_d(alpha = 0.5) +
+  labs(y = "Recurrence Time (in months)",
+       x = "Number of Units Received",
+       title = "Recurrence Time by Units",
+       caption = "Diamonds indicate sample means")
+```
+
+## Model Time using Units
+
+```{r}
+#| echo: true
+
+m3 <- lm(recur_time ~ units, data = bs_dat2)
+
+tidy(m3, conf.int = TRUE, conf.level = 0.90)
+```
+
+## Model Square Root of Time using Units
+
+```{r}
+#| echo: true
+
+m4 <- lm(sqrt(recur_time) ~ units, data = bs_dat2)
+
+tidy(m4, conf.int = TRUE, conf.level = 0.90)
+```
+
+## Normal Q-Q plots of Residuals
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+m3_aug <- augment(m3, data = bs_dat2)
+m4_aug <- augment(m4, data = bs_dat2)
+
+p1 <- ggplot(m3_aug, aes(sample = .resid)) +
+  geom_qq() + geom_qq_line(col = "red") +
+  theme(aspect.ratio = 1) +
+  labs(title = "Model m3 Residuals", x = "", y = "")
+
+p2 <- ggplot(m4_aug, aes(sample = .resid)) +
+  geom_qq() + geom_qq_line(col = "red") +
+  theme(aspect.ratio = 1) +
+  labs(title = "Model m4 Residuals", x = "", y = "")
+
+p1 + p2
+```
+
+## `m3` residual plots
+
+```{r}
+#| echo: true
+
+par(mfrow = c(1,2)); plot(m3, which = 1:2); par(mfrow = c(1,1))
+```
+
+## `m4` residual plots
+
+```{r}
+#| echo: true
+
+par(mfrow = c(1,2)); plot(m4, which = 1:2); par(mfrow = c(1,1))
+```
+
+## Compare fits of `m1` and `m3`?
+
+```{r}
+#| echo: true
+
+glance(m1) |> select(r.squared, AIC, sigma, df, df.residual, nobs)
+glance(m3) |> select(r.squared, AIC, sigma, df, df.residual, nobs)
+```
+
+Are these two models actually predicting the same outcome?
+
+- for the same subjects?
+
+
+## Session Information
+
+```{r}
+#| echo: true
+sessionInfo()
+```
