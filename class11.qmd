@@ -310,7 +310,7 @@ tidy(m1, conf.int = TRUE, conf.level = 0.90) |>
 - What is the 90% CI for the population mean time to recurrence for `age_group` = Younger?
 - What is the 90% CI for the mean difference in time to recurrence between Younger and Middle?
 
-## `glance` to summarize `m1`'s fit
+## `glance` to summarize `m1`'s fit {.smaller}
 
 ```{r}
 #| echo: true
