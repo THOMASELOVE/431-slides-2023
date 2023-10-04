@@ -1,0 +1,1138 @@
+---
+title: "431 Class 12"
+author: Thomas E. Love, Ph.D.
+date: "2023-10-05"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 12 | 2023-10-05 | <https://thomaselove.github.io/431-2023/>"
+---
+
+
+## Today's Agenda
+
+- A New Example from a 2020 letter to NEJM
+- Hypothesis Testing and Interval Estimation for Means
+  - Quantitative Outcome: Paired Samples
+  - Quantitative Outcome: Single Sample
+  - t, Bootstrap and Wilcoxon methods
+- Slides 1-70 in-class, the rest are for at-home study
+
+## Today's Packages
+
+```{r}
+#| echo: true
+#| message: false
+
+library(infer) ## new today, part of tidymodels
+library(readxl) ## to read in Excel sheet
+library(broom) ## also part of tidymodels
+library(Hmisc) ## for help with bootstrapping and describe()
+library(kableExtra) ## for table tidying
+library(mosaic) ## for favstats()
+library(xfun) ## for session_info()
+
+library(janitor); library(naniar); library(patchwork)
+library(tidyverse)
+
+theme_set(theme_bw())
+```
+
+- Visit <https://infer.tidymodels.org/> for more on infer.
+- Visit <https://moderndive.com/> especially Section III for more of a textbook-style presentation.
+
+## Something Happened? 
+
+Very often, sample data indicate that something has happened...
+
+- the proportion of people who respond to this treatment has changed
+- the mean value of this measure appears to have changed
+
+Before we get too excited, it’s worth checking whether the apparent result might possibly be the result of random sampling error. Statistics provides multiple ways to do this.
+
+## Making Inferences From A Sample
+
+1. What is the population about which we aim to make an inference?
+2. What is the sample available to us to make that inference?
+  - Who are the individuals fueling our inference?
+  - What data are available from those individuals?
+3. Why might the study population not represent the target population?
+
+For more, see Spiegelhalter, Chapter 3
+
+## Point Estimates & Confidence Intervals {.smaller}
+
+- A **point estimate** provides a single best guess as to the value of a population or process parameter.
+- A **confidence interval** can convey how much error one must allow for in a given estimate. It includes an interval estimate and a probability statement (confidence level.)
+
+The key tradeoffs in estimation are: 
+
+- cost vs. precision (larger samples produce narrower intervals), and 
+- precision vs. confidence in the accuracy of the statement.  
+
+## Today's Example
+
+We'll look at (part of) a 2020 NEJM letter which reports on a study of 70 inpatients with Covid-19. 
+
+> ... [w]e tested saliva specimens collected by the patients themselves and nasopharyngeal swabs collected from the patients at the same time point by health care workers.
+
+::: aside
+Wyllie et al. [Saliva or Nasopharyngeal Swab Specimens for Detection of SARS-CoV-2](https://www.nejm.org/doi/full/10.1056/NEJMc2016359). *N Engl J Med* 2020; 383:1283-1286. DOI: [10.1056/NEJMc2016359](https://www.nejm.org/doi/full/10.1056/NEJMc2016359) (2020-09-24)
+:::
+
+## Today's Data
+
+```{r}
+#| echo: true
+sal <- read_excel("c12/data/nejm_saliva.xlsx") |>
+  clean_names() |> mutate(subject = as.character(subject))
+
+dim(sal); pct_complete_case(sal)
+
+head(sal)
+```
+
+## A Codebook (ignoring `subject`) {.smaller}
+
+Variable | Description
+-------- | ----------------------------------
+`np_n1` | cycle threshold for PCR assay targeting SARS-CoV-2 N1 sequence via Nasopharyngeal Swab Sample
+`s_n1` | cycle threshold via Saliva Sample
+`np_titre` | Detected copies/ml of SARS-CoV-2 RNA via Nasopharyngeal Swab
+`s_titre` | Detected copies/ml of SARS-CoV-2 RNA via Saliva
+
+- More details available in Appendix 1 and 2 of Wyllie et al. (2020)
+- There is an equation to take `n1` values to `titre` values.
+
+## Key Question A
+
+Do the two sampling approaches (nasopharyngeal and saliva) provide meaningfully different results?
+
+- Does the population of NP minus Saliva paired differences follow a distribution centered around zero?
+- If we'd obtained data from the entire target population, is it reasonable that the mean difference between Saliva and NP would be zero?
+
+This is a **paired samples** question, comparing NP to Saliva, where each subject provided both an NP and a Saliva result.
+
+## Question A: Paired Differences
+
+Each subject provides a Nasopharyngeal response (`np_n1`) and a paired (by subject) Saliva response (`s_n1`). 
+
+- We'll analyze the paired differences (`np_n1` - `s_n1`).
+
+```{r}
+#| echo: true
+
+sal <- sal |> mutate(diff = np_n1 - s_n1)
+## last three subjects shown below
+tail(sal, 3) |> select(subject, np_n1, s_n1, diff) |> 
+  kbl() |> kable_minimal(full_width = FALSE, font_size = 24)
+```
+
+## Data Setup for Question A
+
+We have a sample of 70 observations of the saliva - NP paired differences. We want to know if they might plausibly come from a distribution with mean zero.
+
+```{r}
+#| echo: true
+stem(sal$diff)
+```
+
+
+## Key Question B
+
+Could the sample of N1 saliva data have plausibly come from a population with mean 35?
+
+- If we could have sampled the entire target population, is it reasonable that the mean of that population would be 35?
+- Is the true mean of N1 (saliva) = 35?
+
+This is a **one-sample** question, comparing N1 in Saliva to 35, and ignoring the Nasopharyngeal data.
+
+## Data Setup for Question B
+
+We have a sample of 70 observations of the N1 values for Saliva. We want to know if they might plausibly come from a distribution with mean 35.
+
+```{r}
+#| echo: true
+stem(sal$s_n1)
+```
+
+## Key Insight
+
+A paired samples analysis and a one-sample analysis are done in exactly the same way.
+
+- If you have paired data, take paired differences, and treat them as you would a single sample.
+- So, I can walk through Question A's analysis, and Question B will take the same approach.
+
+The comparison of Saliva vs. Nasopharyngeal specimens seems of greater interest, so we'll start with Question A.
+
+# Question A Analyses
+
+## DTDP for Paired Differences
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(sal, aes(sample = diff)) +
+  geom_qq(col = "slateblue") + geom_qq_line(col = "red") + 
+  theme(aspect.ratio = 1) +
+  labs(y = "Paired NP - Saliva differences",
+       x = "Expectations from N(0,1)")
+
+p2 <- ggplot(sal, aes(x = diff)) +
+  geom_histogram(bins = 10, col = "white", fill = "slateblue")
+
+p3 <- ggplot(sal, aes(x = diff, y = "")) +
+  geom_violin(col = "slateblue") +
+  geom_boxplot(fill = "slateblue", alpha = 0.5, width = 0.3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "")
+
+p1 + (p2/p3 + plot_layout(heights = c(2,1))) + 
+  plot_annotation(title = "Paired NP - Saliva differences (n = 70 subjects)",
+                  subtitle = "Normal model somewhat reasonable?")
+```
+
+## Paired Differences by the Numbers
+
+```{r}
+#| echo: true
+
+favstats(~ diff, data = sal) |> 
+  kbl(digits = 3) |> kable_minimal(font_size = 24)
+
+describe(sal$diff)
+```
+
+
+## Building CIs for the Population Mean of Paired Differences {.smaller}
+
+1. Using the **t distribution** to produce a test and confidence interval about the population mean of the paired differences, $\mu$.
+    - Assumes that the paired differences are drawn from a Normal distribution.
+2. Using the **bootstrap** to produce a test or confidence interval about $\mu$, (or perhaps the *population median* if that's useful.)
+    - Doesn't assume Normality of the paired differences.
+3. Using the **Wilcoxon signed rank** procedure to produce a test/CI about the population *pseudo-median* of the paired differences.
+    - Pseudo-median is close to the mean/median only if differences are *symmetric*.
+
+## Hypothesis Testing Elements
+
+1. Specify the null hypothesis, $H_0$.
+2. Specify the alternative hypothesis, $H_A$.
+3. Specify $\alpha$, tolerable Pr(incorrectly rejecting $H_0$).
+    - Confidence level is 100(1-$\alpha$)%, so 95% confidence means we will tolerate $\alpha = 0.05$.
+4. Specify the approach to be used to make inferences based on the sample.
+5. Obtain the data and summarize it to obtain appropriate p-value, and/or CI.
+
+## For our Question A
+
+$H_0: \mu = 0$ vs. $H_A: \mu \neq 0$.
+
+1. Our null hypothesis is that the Saliva and NP approaches yield the same results. This would lead to their paired differences having mean zero.
+2. If the null hypothesis is not true, it means that the alternative (that the true mean of the paired differences is either greater than or less than 0) must be true.
+3. We'll use a 95% confidence level, corresponding to $\alpha$ = 0.05.
+
+## Available Approaches for Inference
+
+- t-based approach 
+    - either via indicator variable regression or direct t test
+- bootstrap approach for mean (or median) via `infer` package
+- bootstrap confidence interval for mean via `smean.cl.boot()`
+- Wilcoxon signed rank for pseudo-median
+
+# T-based Approaches
+
+## Indicator Variable Regression
+
+This produces the t test result for the mean of `diff`.
+
+```{r}
+#| echo: true
+
+m1 <- lm(diff ~ 1, data = sal)
+
+tidy(m1, conf.int = TRUE, conf.level = 0.95) |>
+  kbl(digits = 3) |> kable_classic(font_size = 24)
+```
+
+## Another way to get the t results
+
+This also produces the t test result for the mean of `diff`.
+
+```{r}
+#| echo: true
+
+t.test(sal$diff, mu = 0, conf.level = 0.95)
+```
+
+## Hand-calculation of the t statistic
+
+The one-sample t test uses as its test statistic:
+
+$$
+t = \frac{\bar{x} - \mu_0}{s/\sqrt{n}} = \frac{2.36-0}{8.672/\sqrt{70}} = \frac{2.36}{1.0365} = 2.277
+$$
+
+- Sample mean $\bar{x}$, standard deviation $s$, null hypothesized mean = $\mu_0$.
+
+## Obtaining the p value
+
+The t distribution is indexed by its degrees of freedom.
+- In this case, we have $n = 70$ and df = $n-1$ = 69.
+
+In R, we can obtain a two-tailed p value for our test statistic of 2.277 using 69 degrees of freedom with:
+
+```{r}
+#| echo: true
+
+pt(2.277, df = 69, lower.tail = FALSE)*2
+```
+
+## Defining a *p* Value (but not very well)
+
+The *p* value estimates the probability that we would obtain a result as much in favor or more in favor of the alternative hypothesis $H_A$ as we did, assuming that $H_0$ is true. 
+
+- The *p* value is a conditional probability of seeing evidence as strong or stronger in favor of $H_A$ calculated **assuming** that $H_0$ is true.
+
+## How people use the *p* Value
+
+- If the *p* value is less than $\alpha$, this suggests we might reject $H_0$ in favor of $H_A$, and declare the result statistically significant.
+
+But we won't be comfortable with doing that, at least in due time.
+
+## What the *p* Value isn't
+
+The *p* value is not a lot of things. It's **NOT**
+
+- The probability that the alternative hypothesis is true
+- The probability that the null hypothesis is false
+- Or anything like that.
+
+The *p* value **is closer to** a statement about the amount of statistical evidence contained in the data that favors the alternative hypothesis $H_A$. It's a measure of the evidence's credibility.
+
+## Confidence Interval via t distribution
+
+The two-sided 100(1-$\alpha$)% confidence interval for $\mu$ is:
+
+$$\bar{x} \pm t_{\alpha/2, n-1} ( \frac{s_x}{\sqrt{n}} ) ==> 2.36 \pm t_{0.025, 69} (\frac{8.672}{\sqrt{70}})$$
+
+and we can obtain $t_{0.025, 69}$ from R with:
+
+```{r}
+#| echo: true
+
+qt(0.025, 69, lower.tail = FALSE)
+```
+
+$$
+2.36 \pm 1.9949 \times 1.0365 => 2.36 \pm 2.07, \mbox{ or } (0.29, 4.43)
+$$
+
+## Interpreting the Confidence Interval
+
+Some people think this means that there is a 95% chance that the true mean of the population, $\mu$, falls between 0.29 and 4.43. Not true.
+
+Our confidence is in the process. If we built 100 confidence intervals this way, 95 would be expected to contain the true value of the parameter $\mu$.
+
+- We are accounting for one particular type of error (called sampling error) in developing our interval estimate, while assuming all other potential sources of error are negligible.
+
+## Assumptions of t-based approaches {.smaller}
+
+1. The data (specifically the paired differences) are a **random sample** from what we would observe if we could obtain the entire target population.
+2. The subjects who provide the responses we observe are selected **independently** from the target population. In other words, if I am selected, it does not change the probability that you will be selected if we are each in the target population.
+3. The target population's paired differences follow a **Normal** distribution.
+
+## Our Paired Differences, Again
+
+```{r}
+p1 <- ggplot(sal, aes(sample = diff)) +
+  geom_qq(col = "slateblue") + geom_qq_line(col = "red") + 
+  theme(aspect.ratio = 1) +
+  labs(y = "Paired NP - Saliva differences",
+       x = "Expectations from N(0,1)")
+
+p2 <- ggplot(sal, aes(x = diff)) +
+  geom_histogram(bins = 10, col = "white", fill = "slateblue")
+
+p3 <- ggplot(sal, aes(x = diff, y = "")) +
+  geom_violin(col = "slateblue") +
+  geom_boxplot(fill = "slateblue", alpha = 0.5, width = 0.3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "")
+
+p1 + (p2/p3 + plot_layout(heights = c(2,1))) + 
+  plot_annotation(title = "Paired NP - Saliva differences (n = 70 subjects)",
+                  subtitle = "Does a Normal distribution seem somewhat reasonable?")
+```
+
+# Bootstrap Approaches
+
+## What the infer package does
+
+![](c12/images/ht-diagram.png)
+
+## A randomization test using infer tools
+
+This is a randomization-based analog to the 1-sample t test. First, we calculate the observed statistic:
+
+```{r}
+#| echo: true
+
+observed_mean <- sal |> 
+  specify(response = diff) |>
+  calculate(stat = "mean")
+
+observed_mean
+```
+
+## Compare to a Null Distribution?
+
+Our next goal is to compare this observed statistic to a null distribution, generated under the assumption that the mean was actually 0, to get a sense of how likely it would be for us to see this observed mean difference in the population.
+
+Our null hypothesis is still $H_0: \mu = 0$ vs. the two-tailed alternative $H_A: \mu \neq 0$.
+
+## Using the bootstrap to generate the null distribution
+
+We can generate the null distribution using the bootstrap. 
+
+- In the bootstrap, for each replicate, a sample of size equal to the input sample size is drawn (with replacement) from the input sample data. 
+- This allows us to get a sense of how much variability we’d expect to see in the entire population so that we can then understand how unlikely our sample mean would be.
+
+## `infer` package has 4 main verbs
+
+Verb | Activity
+------ | --------------------------------
+`specify()` | specify variable, or relationship between variables, that interests us
+`hypothesize()` | declare the null hypothesis
+`generate()` | generate data reflecting the null hypothesis
+`calculate()` | obtain a distribution of statistics from the generated data to form the null distribution
+
+## Generate the null distribution for the mean of the paired differences
+
+Using the bootstrap, we need to set a seed so we can replicate our work later:
+
+```{r}
+#| echo: true
+set.seed(431001)
+null_dist_diffs <- sal |>
+  specify(response = diff) |>
+  hypothesize(null = "point", mu = 0) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "mean")
+```
+
+## Resulting Null Distribution
+
+Get a sense of where our observed statistic falls.
+
+```{r}
+#| echo: true
+
+null_dist_diffs |>
+  visualize() +
+  shade_p_value(observed_mean, direction = "two-sided")
+```
+
+## Calculating the bootstrap *p* value
+
+```{r}
+#| echo: true
+
+p_value_1_sample <- null_dist_diffs |>
+  get_p_value(obs_stat = observed_mean,
+              direction = "two-sided")
+
+p_value_1_sample
+```
+
+Thus, if the true mean of the paired differences was really 0, our approximation of the probability that we would see a test statistic as or more extreme than what we've observed in our data is approximately 0.01.
+
+## Bootstrap CI from `infer` 
+
+There are several ways to generate a confidence interval from the bootstrap sample generated by `infer`. The default approach uses a percentile-based approach.
+
+```{r}
+#| echo: true
+
+ci_diffs1 <- null_dist_diffs |>
+  get_confidence_interval(point_estimate = observed_mean, 
+                          level = 0.95, type = "se")
+
+observed_mean ## point estimate of population mean
+ci_diffs1 ## bootstrap 95% CI for population mean
+```
+## Bootstrap CI from `smean.cl.boot()`
+
+We've previously seen a quick way to get a 95% bootstrap (percentile) confidence interval for a mean via `smean.cl.boot()` from `Hmisc`:
+
+```{r}
+#| echo: true
+set.seed(431002)
+smean.cl.boot(sal$diff, conf.int = 0.95, B = 2000)
+```
+
+What can we conclude in light of this interval?
+
+## When is a Bootstrap CI for $\mu$ Reasonable? 
+
+The interval will be reasonable as long as we are willing to believe that:
+
+- the original sample was a random sample (or at least a completely representative sample) from a population, 
+- and that the samples are independent of each other (selecting one subject doesn't change the probability that another subject will also be selected)
+- and that the samples are identically distributed (even though that distribution may not be Normal.) 
+
+## Does the bootstrap solve all of our problems?
+
+No. It is still possible that the results can be both:
+
+- **inaccurate** (i.e. they can, include the true value of the unknown population mean less often than the stated confidence probability) and 
+- **imprecise** (i.e., they can include more extraneous values of the unknown population mean than is desirable).
+
+## Assumptions of the bootstrap
+
+1. The data (specifically the paired differences) are a **random sample** from what we would observe if we could obtain the entire target population.
+2. The subjects who provide the responses we observe are selected **independently** from the target population. In other words, if I am selected, it does not change the probability that you will be selected if we are each in the target population.
+
+## Bootstrap 95% CI for Median via `infer` (1)
+
+Can we use the bootstrap to obtain a 95% CI for the median of the paired differences?
+
+```{r}
+#| echo: true
+
+obs_median <- sal |> specify(response = diff) |> 
+  calculate(stat = "median")
+
+obs_median
+```
+
+## Bootstrap 95% CI for Median (2)
+
+The sample median of the paired differences is 2.725
+
+```{r}
+#| echo: true
+
+set.seed(431008)
+null_dist_diffs_med <- sal |>
+  specify(response = diff) |>
+  generate(reps = 2000, type = "bootstrap") |>
+  calculate(stat = "median")
+
+head(null_dist_diffs_med, 4) # first four bootstrapped medians
+```
+
+## Bootstrap 95% CI for Median (3)
+
+Obtain a 90% CI for the median of the paired differences?
+
+```{r}
+#| echo: true
+
+ci_diffs_med <- null_dist_diffs |>
+  get_confidence_interval(point_estimate = obs_median, 
+                          level = 0.95)
+
+obs_median # point estimate
+ci_diffs_med # 95% confidence interval
+```
+
+# Wilcoxon Signed Rank Procedure
+
+## The Wilcoxon Signed Rank Procedure
+
+The Wilcoxon signed rank approach builds interval estimates for the population *pseudo-median* when the population can only be assumed to be symmetric. 
+
+- For any sample, the pseudo-median is defined as the median of all of the midpoints of pairs of observations in the sample. 
+- As it turns out, if you're willing to assume the population is **symmetric** (but not necessarily Normally distributed) then the pseudo-median is equal to the population median.
+
+## Wilcoxon based 95% CI
+
+```{r}
+#| echo: true
+wilcox.test(sal$diff, mu = 0, conf.int = TRUE, conf.level = 0.95)
+```
+
+## Wilcoxon Signed Rank CI
+
+If we're willing to believe the `diff` values come from a population with a symmetric distribution, the 95% CI for the population median would be (`r round(wilcox.test(sal$diff, conf.int=TRUE, conf.level=0.95)$conf.int,2)`). For a non-symmetric population, this only applies to the *pseudo-median*. The pseudo-median will be fairly close to the sample mean and median if the population actually follows a symmetric distribution. Here, the estimated pseudo-median was 3.015.
+
+```{r}
+#| echo: true
+favstats(~ diff, data = sal)
+```
+
+## Wilcoxon Assumptions {.smaller}
+
+1. The data (specifically the paired differences) are a random sample from what we would observe if we could obtain the entire target population.
+2. The subjects who provide the responses we observe are selected independently from the target population. In other words, if I am selected, it does not change the probability that you will be selected if we are each in the target population.
+3. The data are reasonably assumed to come from a symmetric population, so that the pseudo-median is of interest.
+
+## Question A Conclusions
+
+Does the population of NP minus Saliva paired differences follow a distribution centered around zero?
+
+- Sample of paired differences reasonably modeled by Normal distribution.
+- $H_0: \mu = 0$ vs. $H_A: \mu \neq 0$.
+- Results from our four approaches on the next slide.
+
+## Question A Results {.smaller}
+
+Procedure | *p* | Estimate | 95% CI
+:--------: | -----: | :--------: | --------:
+t | 0.026 | $\hat{\mu} = \bar{x}$ = 2.36 | (0.29, 4.43)
+Bootstrap via `infer` | 0.01 | $\hat{\mu} = \bar{x}$ = 2.36 | (0.42, 4.30)
+Bootstrap via `Hmisc` | < 0.05 | $\hat{\mu} = \bar{x}$ = 2.36 | (0.41, 4.49)
+Bootstrap Median | > 0.05 | median = 2.73 | (-1.96, 1.79)
+Wilcoxon | 0.013 | ps.-med. = 3.02 | (0.62, 5.17)
+
+What can we conclude?
+
+- Remember our hypotheses... $H_0: \mu = 0$ vs. $H_A: \mu \neq 0$.
+
+
+# Question B Analyses
+
+## Question B (Single Sample)
+
+$H_0: \mu = 35$ vs. $H_A: \mu \neq 35$ where $\mu$ is now the population mean of the N1 values for Saliva Samples.
+
+Again, we'll use a 95% confidence level, or $\alpha = 0.05$.
+
+- DTDP 
+- t approaches 
+- bootstrap with `infer`, bootstrap with `smean.cl.boot()`,
+- Wilcoxon signed rank
+- Conclusions
+
+## DTDP for Saliva N1 values
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(sal, aes(sample = s_n1)) +
+  geom_qq(col = "saddlebrown") + geom_qq_line(col = "red") + 
+  theme(aspect.ratio = 1) +
+  labs(y = "Saliva N1 values",
+       x = "Expectations from N(0,1)")
+
+p2 <- ggplot(sal, aes(x = s_n1)) +
+  geom_histogram(bins = 10, col = "white", fill = "saddlebrown")
+
+p3 <- ggplot(sal, aes(x = s_n1, y = "")) +
+  geom_violin(col = "saddlebrown") +
+  geom_boxplot(fill = "saddlebrown", alpha = 0.5, width = 0.3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "")
+
+p1 + (p2/p3 + plot_layout(heights = c(2,1))) + 
+  plot_annotation(title = "Saliva Samples: N1 values (n = 70 subjects)",
+                  subtitle = "Normal model somewhat reasonable?")
+```
+
+## Numerical Summaries
+
+```{r}
+#| echo: true
+
+favstats(~ s_n1, data = sal) |>
+  kbl(digits = 2) |> kable_minimal(font_size = 24)
+```
+
+
+## T approach
+
+Even though the Normal assumption for the N1 values is hard to believe.
+
+```{r}
+#| echo: true
+tt <- t.test(sal$s_n1, mu = 35, conf.level = 0.95)
+tidy(tt) |> kbl(digits = 3) |> kable_classic_2()
+```
+
+## Bootstrap via `infer`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+observed_statistic <- sal |> 
+  specify(response = s_n1) |>
+  calculate(stat = "mean")
+
+set.seed(2022)
+null_dist_1_sample <- sal |>
+  specify(response = s_n1) |>
+  hypothesize(null = "point", mu = 35) |>
+  generate(reps = 2000, type = "bootstrap") |>
+  calculate(stat = "mean")
+
+null_dist_1_sample |>
+  visualize() +
+  shade_p_value(observed_statistic, direction = "two-sided")
+```
+
+## Bootstrap p value via `infer`
+
+```{r}
+#| echo: true
+p_value_1_sample <- null_dist_1_sample |>
+  get_p_value(obs_stat = observed_statistic,
+              direction = "two-sided")
+
+p_value_1_sample
+```
+
+## Bootstrap 95% CI via `infer`
+
+```{r}
+#| echo: true
+ci_1_sample <- null_dist_1_sample |>
+  get_confidence_interval(point_estimate = observed_statistic, 
+                          level = 0.95, type = "se")
+
+ci_1_sample
+```
+
+## Bootstrap 95% CI via `Hmisc`
+
+```{r}
+#| echo: true
+set.seed(43134)
+smean.cl.boot(sal$s_n1, conf.int = 0.95, B = 2000)
+```
+
+## Wilcoxon Signed Rank
+
+```{r}
+#| echo: true
+wilcox.test(sal$s_n1, mu = 35, conf.int = TRUE, conf.level = 0.95)
+```
+
+## Question B Results {.smaller}
+
+Procedure | *p* | Estimate | 95% CI
+:--------: | -----: | :--------: | --------:
+t | 0.039 | $\hat{\mu} = \bar{x}$ = 32.63 | (30.38, 34.88)
+Bootstrap via `infer` | 0.029 | $\hat{\mu} = \bar{x}$ = 32.63 | (30.5, 34.8)
+Bootstrap via `Hmisc` | < 0.05 | $\hat{\mu} = \bar{x}$ = 32.63 | (30.35, 34.84)
+Wilcoxon | 0.053| ps.-med. = 32.71 | (30.17, 35.00)
+
+Remember that $H_0: \mu = 35$ vs. $H_A: \mu \neq 35$ where $\mu$ is now the population mean of the N1 values for Saliva Samples.
+
+What can we conclude about ourf hypotheses?
+
+## What's in the rest of these slides
+
+Another one-sample example, with some slight variations in approach, and more details in some spots, but without the bootstrap for the median.
+
+## Session Information
+
+```{r}
+#| echo: true
+session_info()
+```
+
+# For Home Study
+
+## Key Question for Home Study
+
+Can we test to see whether the mean of the base-10 logged (RNA copies per milliliter) in the NP samples is detectably different from 4.5?
+
+- Our null hypothesis is $H_0: \mu = 4.5$ vs. the two-tailed alternative $H_A: \mu \neq 4.5$.
+
+### Create a new variable
+
+```{r}
+#| echo: true
+sal <- sal |>
+  mutate(np_log = log10(np_titre))
+```
+
+## DTDP: Base-10 Logarithm of `np_titre`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(sal, aes(sample = log10(np_titre))) +
+  geom_qq(col = "slateblue") + geom_qq_line(col = "red") + 
+  theme(aspect.ratio = 1) +
+  labs(y = "log10(np_titre values (copies/ml))",
+       x = "Expectations from N(0,1)")
+
+p2 <- ggplot(sal, aes(x = log10(np_titre))) +
+  geom_histogram(bins = 10, col = "white", fill = "slateblue")
+
+p3 <- ggplot(sal, aes(x = log10(np_titre), y = "")) +
+  geom_violin(col = "slateblue") +
+  geom_boxplot(fill = "slateblue", width = 0.3) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 3, fill = "white") +
+  labs(y = "")
+
+p1 + (p2/p3 + plot_layout(heights = c(2,1))) + 
+  plot_annotation(title = "Base-10 log(NP_titre) data (n = 70 subjects)",
+                  subtitle = "Normal model somewhat reasonable?")
+```
+
+## Numerical Summaries {.smaller}
+
+Raw `np_titre` data:
+
+```{r}
+#| echo: true
+favstats(~ np_titre, data = sal) |> kbl() |> kable_minimal(font_size= 24)
+```
+
+Base-10 logarithm of `np_titre`:
+
+```{r}
+#| echo: true
+favstats(~ log10(np_titre), data = sal) |> kbl(digits = 3) |> kable_minimal()
+```
+
+Note the log of the mean ($log_{10}(98527107)$ = 7.994) isn't the mean of the logs (4.927).
+
+## Our Assumptions
+
+Suppose that 
+
+- logged cells/ml results across the population of all inpatients with a SARS-CoV-2 diagnosis follow a Normal distribution (with mean $\mu$ and standard deviation $\sigma$.)
+- the 70 adults in our `sal` tibble are a random sample from that population. 
+
+## What else do we know?
+
+We know the sample mean (`r round_half_up(mean(sal$np_log),2)`) of our outcome, but we don't know $\mu$, the mean across **all** inpatients with a SARS-CoV-2 diagnosis. 
+
+So we need to estimate it, by producing a **confidence interval for the true (population) mean** $\mu$.
+
+## Available Methods
+
+To build a point estimate and confidence interval for the population mean, we could use
+
+1. A **t-based** estimate and confidence interval, available from an intercept-only linear model, or (equivalently) a t test.
+    - This approach will require an assumption that the population comes from a Normal distribution.
+
+## Available Methods
+
+2. A **bootstrap** confidence interval, which uses resampling to estimate the population mean.
+    - This approach won't require the Normality assumption, but has other constraints.
+3. A **Wilcoxon signed rank** approach, but that won't describe the mean, only a pseudo-median.
+    - This also doesn't require the Normality assumption, but no longer describes the population mean (or median) unless the population can be assumed symmetric. Instead it describes the *pseudo-median*.
+
+
+## Starting with A Good Answer
+
+Indicator variable regression to produce a t-interval.
+
+```{r}
+#| echo: true
+model1 <- lm(np_log ~ 1, data = sal)
+tidy(model1, conf.int = TRUE, conf.level = 0.95) |>
+  select(term, estimate, std.error, conf.low, conf.high, p.value) |>
+  kbl(digits = 2) |> kable_minimal(font_size = 24)
+```
+
+```{r}
+res <- tidy(model1, conf.int = TRUE, conf.level = 0.95)
+```
+
+- Point estimate of population mean ($\mu$) is `r round_half_up(res$estimate,2)` mm Hg.
+- 95% confidence interval is (`r round_half_up(res$conf.low, 2)`, `r round_half_up(res$conf.high, 2)`) for $\mu$.
+
+## Interpreting the 95% CI for $\mu$
+
+- Some people think this means that there is a 95% chance that the true mean of the population, $\mu$, falls between `r round(res$conf.low, 2)` and `r round(res$conf.high, 2)`. Not true.
+- The population mean $\mu$ is a constant **parameter** of the population of interest. That constant is not a random variable, and does not change. 
+- So the actual probability of the population mean falling inside that range is either 0 or 1.
+
+## So what do we have confidence in?
+
+Our confidence is in our process. 
+
+- It's in the sampling method (random sampling) used to generate the data, and in the assumption that the population follows a Normal distribution.
+- It's captured in our accounting for one particular type of error (called *sampling error*) in developing our interval estimate, while assuming all other potential sources of error are negligible.
+
+## Interpreting the CI
+
+Our 95% confidence interval for $\mu$ is (`r round(res$conf.low, 2)`, `r round(res$conf.high, 2)`). 
+
+If we used this method to sample data from the target population of inpatients with SARS-CoV-2 and build 100 such intervals, then 95 of them would contain the true population mean. We don't know whether this particular interval contains $\mu$, though.
+
+- 100(1 - $\alpha$)%, here 95%, or 0.95 is the *confidence* level.
+- $\alpha$ = 5%, or 0.05 is called the *significance* level.
+
+This approach is identical to a t test.
+
+## Formula for the t-based CI?
+
+Many confidence intervals follow a general strategy using a point estimate $\pm$ a margin for error. 
+
+We build a 100(1-$\alpha$)% confidence interval using the $t$ distribution, using the sample mean $\bar{x}$, the sample size $n$, and the sample standard deviation $s_x$. The two-sided 100(1-$\alpha$)% confidence interval is:
+
+$$\bar{x} \pm t_{\alpha/2, n-1} ( \frac{s_x}{\sqrt{n}} )$$
+
+## Ancillary Elements of the CI
+
+- $SE(\bar{x}) = \frac{s_x}{\sqrt{n}}$ is the standard error of the sample mean
+- The margin of error for this CI is $t_{\alpha/2, n-1} ( \frac{s_x}{\sqrt{n}})$.
+- $t_{\alpha/2, n-1}$ is the value that cuts off the top $\alpha/2$ percent of the $t$ distribution, with $n - 1$ degrees of freedom. Obtain in R with:
+
+`qt(alphaover2, df = n-1, lower.tail=FALSE)`
+
+## Five Steps to Complete a Hypothesis Test {.smaller}
+
+1.	Specify the null hypothesis, $H_0$ 
+2.	Specify the research or alternative hypothesis, $H_1$, sometimes called $H_A$
+3.	Specify the approach to be used to make inferences to the population based on sample data. 
+    - We must specify $\alpha$, the probability of incorrectly rejecting $H_0$ that we are willing to accept. Often, we use $\alpha = 0.05$
+4.	Obtain the data, and summarize it to obtain an appropriate point estimate and confidence interval (and maybe a $p$ value.)
+5. Draw a conclusion
+
+## Five Steps of a Hypothesis Test
+
+1. Specify the null hypothesis.
+
+Here, we have $H_0: \mu = 4.5$, or in general $H_0: \mu = \mu_0$.
+
+2. Specify the research (alternative) hypothesis.
+
+Here, we have $H_A: \mu \neq 4.5$
+
+## Five Steps of a Hypothesis Test
+
+3. Calculate a test statistic based on the data and null hypothesis value.
+
+The one-sample t test uses as its test statistic:
+
+$$
+t = \frac{\bar{x} - \mu_0}{s/\sqrt{n}} = \frac{4.927-4.5}{1.669/\sqrt{70}} = 2.14
+$$
+
+where $\bar{x}$ is the sample mean and $s$ is the sample standard deviation.
+
+## Five Steps of a Hypothesis Test
+
+4. Obtain an appropriate p value by comparing the test statistic to the reference distribution identified by the null hypothesis, and sample size.
+
+- Here, we have n = 70, so we have n - 1 = 69 degrees of freedom for our estimate.
+- In R, we can obtain a two-tailed p value for our test statistic of 2.14 using 69 degrees of freedom with:
+
+```{r}
+#| echo: true
+
+pt(2.14, df = 69, lower.tail = FALSE)*2
+```
+
+## Step 5: Make a decision (based on the p value)
+
+This is the part I don't like. Everything up to here is fine.
+
+If we establish a tolerable Type I error rate, $\alpha$, then 
+
+- if $p < \alpha$, we can reject our null hypothesis in favor of the alternative.
+- if $p \geq \alpha$, we must fail to reject our null hypothesis.
+
+## Comparing the p-value to $\alpha$
+
+So, if $\alpha = 0.05$, and we have 
+
+- $H_0: \mu = 4.5$ vs. $H_A: \mu \neq 4.5$
+- and obtain a two-tailed $p$ value = 0.036
+
+what should we conclude?
+
+## One-Sample t test
+
+- $H_0: \mu = 4.5$ vs. the two-tailed alternative $H_A: \mu \neq 4.5$.
+
+```{r}
+#| echo: true
+t.test(sal$np_log, mu = 4.5)
+```
+
+## Tidied One-Sample t test
+
+- $H_0: \mu = 4.5$ vs. the two-tailed alternative $H_A: \mu \neq 4.5$.
+
+```{r}
+#| echo: true
+tt <- t.test(sal$np_log, mu = 4.5)
+tidy(tt) |> kbl(digits = 2) |> kable_paper(font_size = 24)
+```
+
+## Approaches that Don't Assume Normality
+
+Hypothesis Testing about a Population Mean (or Median) that don't require the assumption of Normality:
+
+1. with infer() tools, a randomization test for the mean relying on the bootstrap
+2. via a bootstrap confidence interval for the mean (or the median)
+3. with the Wilcoxon signed-rank test (tests population pseudo-median)
+
+## A randomization test using infer tools
+
+This is a randomization-based analog to the 1-sample t test. First, we calculate the observed statistic:
+
+```{r}
+#| echo: true
+
+observed_statistic <- sal |> 
+  specify(response = np_log) |>
+  calculate(stat = "mean")
+
+observed_statistic
+```
+
+## Next Goal
+
+Our next goal is to compare this observed statistic to a null distribution, generated under the assumption that the mean was actually 4.5, to get a sense of how likely it would be for us to see this observed mean if the true logged counts/ml in the population was really 4.5.
+
+Again, our null hypothesis is $H_0: \mu = 4.5$ vs. the two-tailed alternative $H_A: \mu \neq 4.5$.
+
+## Using the bootstrap to generate the null distribution
+
+We can generate the null distribution using the bootstrap. 
+
+- In the bootstrap, for each replicate, a sample of size equal to the input sample size is drawn (with replacement) from the input sample data. 
+- This allows us to get a sense of how much variability we’d expect to see in the entire population so that we can then understand how unlikely our sample mean would be.
+
+## Generate the null distribution
+
+Using the bootstrap, we need to set a seed so we can replicate our work later:
+
+```{r}
+#| echo: true
+set.seed(431)
+null_dist_1_sample <- sal |>
+  specify(response = np_log) |>
+  hypothesize(null = "point", mu = 4.5) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "mean")
+```
+
+## Resulting Null Distribution
+
+Get a sense of where our observed statistic falls.
+
+```{r}
+#| echo: true
+
+null_dist_1_sample |>
+  visualize() +
+  shade_p_value(observed_statistic, direction = "two-sided")
+```
+
+## Calculating the *p* value
+
+```{r}
+#| echo: true
+
+p_value_1_sample <- null_dist_1_sample |>
+  get_p_value(obs_stat = observed_statistic,
+              direction = "two-sided")
+
+p_value_1_sample
+```
+
+Thus, if the true mean logged counts/ml was really 4.5, our approximation of the probability that we would see a test statistic as or more extreme than is approximately 0.04.
+
+## What if our null hypothesis changed?
+
+We currently have $H_0: \mu = 4.5$ vs. the two-tailed alternative $H_A: \mu \neq 4.5$, and we obtain a p value of about 0.04.
+
+Consider $H_0: \mu <= 4.5$ vs. the one-tailed alternative $H_A: \mu > 4.5$.
+
+- If we used the same null distribution we created previously, then we should have a p value of about 0.04/2 = 0.02
+
+## Visualize 1-tailed p value
+
+```{r}
+#| echo: true
+
+null_dist_1_sample |>
+  visualize() +
+  shade_p_value(observed_statistic, direction = "greater")
+```
+
+## Calculating the *p* value
+
+Again, we're now looking at $H_0: \mu <= 4.5$ vs. the one-tailed alternative $H_A: \mu > 4.5$.
+
+```{r}
+#| echo: true
+
+p_value_1_sample <- null_dist_1_sample |>
+  get_p_value(obs_stat = observed_statistic,
+              direction = "greater")
+
+p_value_1_sample
+```
+
+## One-Sided t test and CI?
+
+```{r}
+#| echo: true
+t.test(sal$np_log, mu = 4.5, alternative = "greater")
+```
+
+## Bootstrap Mean via Confidence Interval and `smean.cl.boot()`
+
+- $H_0: \mu = 4.5$ vs. the two-tailed alternative $H_A: \mu \neq 4.5$.
+
+95% confidence interval via bootstrap...
+
+```{r}
+#| echo: true
+
+set.seed(43102)
+smean.cl.boot(sal$np_log, conf.int = 0.95, B = 2000)
+```
+
+What can we conclude from this interval about our hypotheses?
+
+## Bootstrap CI for $\mu$ {.smaller}
+
+What the computer does:
+
+1. Resample the data with replacement, until it obtains a new sample that is equal in size to the original data set. 
+2. Calculates the statistic of interest (here, a sample mean.) 
+3. Repeat the steps above many times (default is 1,000 with our approach) to obtain a set of 1,000 results (here: 1,000 sample means.) 
+4. Sort those 1,000 results in order, and estimate the 90% confidence interval for the population value based on the middle 90% of the 1,000 bootstrap samples.
+5. Send us a result, containing the sample estimate, and the bootstrap 90% confidence interval estimate for the population value.
+
+The bootstrap idea can be used to produce interval estimates for almost any population parameter, not just the mean.
+
+## The Wilcoxon Signed Rank Procedure
+
+The Wilcoxon signed rank approach builds interval estimates for the population *pseudo-median* when the population can only be assumed to be symmetric. 
+
+- For any sample, the pseudo-median is defined as the median of all of the midpoints of pairs of observations in the sample. 
+- As it turns out, if you're willing to assume the population is **symmetric** (but not necessarily Normally distributed) then the pseudo-median is equal to the population median.
+
+## Wilcoxon based 95% confidence interval
+
+```{r}
+#| echo: true
+wilcox.test(sal$np_log, mu = 4.5, conf.int = TRUE, conf.level = 0.95)
+```
+
+## Interpreting the Wilcoxon Signed Rank CI
+
+Again, the pseudo-median would be close to the sample mean and median if the population actually follows a symmetric distribution.
+
+```{r}
+#| echo: true
+favstats(~ np_log, data = sal)
+```
+
+
