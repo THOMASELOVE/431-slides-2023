@@ -1,0 +1,814 @@
+---
+title: "431 Class 13"
+author: Thomas E. Love, Ph.D.
+date: "2023-10-10"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 13 | 2023-10-10 | <https://thomaselove.github.io/431-2023/>"
+---
+
+
+## Today's Agenda {.smaller}
+
+- Working with One Sample
+    - Bootstrap Percentile CI for Population Mean, Median, SD or IQR
+- Working with Two **Paired** Samples
+    - Did pairing help?
+    - Calculating paired differences
+    - Approaches for making comparisons
+        - t or linear model, bootstrap, Wilcoxon signed rank
+- Working with Two **Independent** Samples
+    - Assessing Normality within Each Sample
+    - Approaches for making comparisons
+        - t or linear model assuming equal variances, Welch t not assuming equal variances, bootstrap, Wilcoxon rank sum
+
+## Today's Packages
+
+```{r}
+#| echo: true
+#| message: false
+
+library(boot) ## easier way to get bootstrap CIs from a sample
+library(infer) ## for use in two independent samples setting
+library(xfun) ## for session_info()
+library(gt); library(gtExtras)
+library(broom); library(patchwork)
+library(Hmisc); library(mosaic)
+library(janitor); library(naniar)
+library(tidyverse)
+
+source("c13/data/Love-boost.R")
+
+theme_set(theme_bw())
+```
+
+# Working with a Single Sample
+
+## Data with Missing Values
+
+The `aline.csv` file contains the number of Quarto lines of code for each Project A proposal, but only if it was one of the first 30 approved.
+
+```{r}
+#| echo: true
+aline <- read_csv("c13/data/aline.csv", show_col_types = FALSE) |>
+  clean_names()
+
+glimpse(aline)
+```
+
+There are 44 project groups listed, but only 30 have data.
+
+## Summarizing `aline` missingness
+
+```{r}
+#| echo: true
+miss_var_summary(aline)
+
+n_case_complete(aline)
+
+where_na(aline) |> tail() # we'll just show the last six locations
+```
+
+## Summary Statistics with NAs
+
+How do missing values affect these summaries in R?
+
+```{r}
+#| echo: true
+#| warning: true
+
+mean(aline$lines)
+
+mean(aline$lines, na.rm = TRUE)
+
+median(aline$lines)
+
+median(aline$lines, na.rm = TRUE)
+
+sd(aline$lines)
+
+sd(aline$lines, na.rm = TRUE)
+```
+
+## Summarizing `aline` line counts
+
+```{r}
+#| echo: true
+aline |> select(lines) |> describe()
+
+favstats(~ lines, data = aline) |> gt() |> gt_theme_dark()
+```
+
+## Plotting the Line Counts
+
+```{r}
+#| echo: true
+#| warning: true
+#| fig-align: center
+ggplot(data = aline, aes(x = lines, y = "")) +
+  geom_violin(fill = "darkslategray1") + 
+  geom_boxplot(fill = "yellow", width = 0.3, notch = TRUE,
+               outlier.size = 3, outlier.color = "darkslategray") +
+  geom_rug(sides = "b") +
+  labs(y = "", x = "Lines of Quarto Code")
+```
+
+
+## Bootstrap CI for the Population Mean
+
+Recall the summary statistics for our sample:
+
+```{r}
+#| echo: true
+favstats(~ lines, data = aline) |> gt() |> gt_theme_dark()
+```
+
+Suppose we want a 95% confidence interval for the population mean, $\mu$. We could use `smean.cl.boot()` from the `Hmisc` package to obtain a bootstrap percentile estimate.
+
+```{r}
+#| echo: true
+set.seed(431001)
+smean.cl.boot(aline$lines, conf.int = 0.95, B = 2000)
+```
+
+- Note: `smean.cl.boot()` defaults to `na.rm = TRUE`.
+
+## Bootstrap CI for Population Mean {.smaller}
+
+- Using the `boot` package (sample mean was `r mean(aline$lines, na.rm = TRUE)`)
+
+```{r}
+#| echo: true
+#| warning: true
+bootMean <- function(data, indices) mean(data[indices], na.rm = TRUE)
+
+set.seed(431002)
+b <- boot(aline$lines, bootMean, R = 2000)
+
+boot.ci(b, conf = 0.95, type = "all")
+```
+
+- `smean.cl.boot()` result: (243.8, 264.6): percentile approach
+
+## The Four Intervals Shown Here
+
+Equi-tailed two-sided non-parametric confidence intervals:
+
+- Normal: first order normal approximation
+- Basic: the basic bootstrap interval
+- Percentile: the bootstrap percentile interval
+- BCa: the adjusted bootstrap percentile (BCa) interval
+
+In 431, I'll stick with the percentile approach. Could use this...
+
+```{r}
+#| echo: true
+#| eval: false
+boot.ci(b, conf = 0.95, type = "perc")
+```
+
+## Bootstrap CI for Population Median {.smaller}
+
+- Using the `boot` package (sample median was `r median(aline$lines, na.rm = TRUE)`)
+
+```{r}
+#| echo: true
+#| warning: true
+bootMedian <- function(data, indices) median(data[indices], na.rm = TRUE)
+
+set.seed(4313)
+b <- boot(aline$lines, bootMedian, R = 2000)
+
+boot.ci(b, conf = 0.95, type = "all")
+```
+
+## Bootstrap CI for Standard Deviation {.smaller}
+
+- Using the `boot` package (sample sd was `r sd(aline$lines, na.rm = TRUE)`)
+
+```{r}
+#| echo: true
+#| warning: true
+bootSD <- function(data, indices) sd(data[indices], na.rm = TRUE)
+
+set.seed(4314)
+b <- boot(aline$lines, bootSD, R = 1000)
+
+boot.ci(b, conf = 0.95, type = "all")
+```
+
+## Bootstrap CI for Interquartile Range {.smaller}
+
+- Using the `boot` package (sample IQR was `r IQR(aline$lines, na.rm = TRUE)`)
+
+```{r}
+#| echo: true
+#| warning: true
+bootIQR <- function(data, indices) iqr(data[indices], na.rm = TRUE)
+
+set.seed(4315)
+b <- boot(aline$lines, bootIQR, R = 1000)
+
+boot.ci(b, conf = 0.95, type = "all")
+```
+
+# Working with Paired Samples
+
+## Comparing Means: Two Study Designs {.smaller}
+
+You can afford n = 400 outcome measurements, and want to compare the outcome’s mean under exposure A to the outcome’s mean under exposure B.
+
+1. Select a random sample of 200 people from the target population, each of whom provide an outcome under exposure A, and then an outcome under exposure B.
+2. Select a random sample of 400 people from the target population, then randomly assign 200 to receive exposure A and the remaining 200 to receive exposure B.
+
+- What are the main differences between the studies?
+- Study 1 uses **paired samples**, since each result under exposure A is matched to the exposure B result from the same subject. Calculating paired B - A differences for each subject makes sense.
+- Study 2 uses **independent samples**, where there is no pairing/matching of individual observations across exposures.
+
+## Data from an Autism Trial
+
+The `aut_trial.csv` data describes a clinical investigation of repetitive behaviors in children affected with autism. 
+
+- 10 children with autism are enrolled.
+- For each child with autism, we identify a healthy control child who is the same age and gender.
+
+Each child is observed for 3 hours, and the percent of the observation time in which the child is engaged in repetitive behavior is recorded.
+
+::: aside
+[Xu et al. 2017](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5579465/) motivated this example and provided the data. 
+:::
+
+## Why a Matched-Samples Design?
+
+In this case, our motivation for pairing is (in part) that a child's age and gender may have an impact on our outcome: the percentage of time they spend exhibiting repetitive behaviors. So it makes sense to match each child with autism to a child without autism who is of the same age and gender.
+
+The most interesting summary will be the within-pair differences (perhaps autism - control) in percentage of time spent in repetitive behaviors.
+
+- If we had any missing data here, we'd filter to pairs of subjects with data for both autism and control.
+
+## Ingesting the `aut_trial` data
+
+```{r}
+#| echo: true
+
+aut_trial <- read_csv("c13/data/aut_trial.csv", show_col_types = FALSE) |>
+  clean_names()
+
+aut_trial
+```
+
+## Plotting the `aut_trial` data
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(aut_trial, aes(x = control, y = autism)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "tomato", formula = y ~ x) +
+  theme(aspect.ratio = 1) +
+  labs(x = "% of Time for Control Child", y = "% of Time for Child with Autism",
+       title = "Percentage of time in Repetitive Behaviors",
+       subtitle = "for 10 pairs of a child with autism and a healthy control of the same age and gender",
+       caption = str_glue("Pearson correlation = ", round_half_up(cor(aut_trial$control, aut_trial$autism),2)))
+```
+
+## Did pairing help?
+
+Pairing is done to help reduce nuisance variation.
+
+- In this context, nuisance variation means differences in our outcome due by things other than the main comparison of interest (autism vs. control.)
+- Here, the Pearson Correlation of the % of time in repetitive behaviors comparing the 10 children with autism to the 10 control children is `r round_half_up(cor(aut_trial$control, aut_trial$autism),2)`.
+- A strong positive correlation is a good indicator that pairing worked to reduce the nuisance variation associated with what we matched on (here, age and gender.)
+
+## Plotting the Paired Differences
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+## create column of paired differences
+aut_trial <- aut_trial |> mutate(diff = autism - control)
+
+## Normal Q-Q plot
+p1 <- ggplot(aut_trial, aes(sample = diff)) +
+  geom_qq(col = "darkorange", size = 2) + geom_qq_line(col = "dodgerblue") +
+  theme(aspect.ratio = 1) + 
+  labs(title = "Normal Q-Q plot",
+       y = "paired autism - control differences",
+       x = "Expectation under Standard Normal")
+
+## Histogram with Normal density superimposed
+p2 <- ggplot(aut_trial, aes(x = diff)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 bins = 7, fill = "darkorange", col = "white") +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(aut_trial$diff, na.rm = TRUE), 
+                            sd = sd(aut_trial$diff, na.rm = TRUE)),
+                col = "dodgerblue", lwd = 1.5) +
+  labs(title = "Histogram with Normal Density",
+       x = "paired autism - control differences")
+
+## Boxplot with notch and rug
+p3 <- ggplot(aut_trial, aes(x = diff, y = "")) +
+  geom_boxplot(fill = "darkorange", notch = TRUE, 
+               outlier.color = "darkorange", outlier.size = 2) + 
+  stat_summary(fun = "mean", geom = "point", 
+               shape = 23, size = 3, fill = "white") +
+  geom_rug(sides = "b") +
+  labs(title = "Boxplot with Notch and Rug",
+       x = "paired autism - control differences",
+       y = "")
+
+p1 + (p2 / p3 + plot_layout(heights = c(4,1))) +
+  plot_annotation(title = "Difference in Percentage of Time Spent in Repetitive Behaviors",
+                  subtitle = str_glue("Paired Autism - Control Differences, (n = ", nrow(aut_trial), ")"),
+                  caption = str_glue("Autism - Control differences: Sample Size = ", nrow(aut_trial), ", Sample Median = ", round_half_up(median(aut_trial$diff),1), ", Mean = ", mean(aut_trial$diff), " and SD = ", round_half_up(sd(aut_trial$diff),1)))
+```
+
+## Comparing Paired Samples
+
+- Estimate population mean of paired differences, $\mu_{d}$
+    - Sample mean is `r mean(aut_trial$diff)` percentage points.
+    - t distribution or intercept-only linear model 
+    - bootstrap for $\mu_{d}$ via Hmisc package
+    - bootstrap for $\mu_{d}$ via boot package
+- Estimate population median of paired differences
+    - bootstrap median of differences via boot 
+    - Wilcoxon signed rank (estimates pseudo-median)
+    
+## Assume Normal paired differences?
+
+We'll use 90% confidence, in part because of small sample size. Estimate population mean of paired differences with:
+
+```{r}
+#| echo: true
+m1 <- lm(diff ~ 1, data = aut_trial)
+tidy(m1, conf.int = TRUE, conf.level = 0.90) |>
+  gt() |> gt_theme_dark()
+```
+
+or, equivalently, with 
+
+```{r}
+#| echo: true
+t1 <- t.test(aut_trial$diff, conf.level = 0.90)
+tidy(t1) |> gt() |> gt_theme_espn()
+```
+
+## Bootstrap for Population Mean, 1
+
+Again, we'll use 90% confidence to estimate the population mean of our paired autism-control differences...
+
+```{r}
+#| echo: true
+set.seed(4316)
+## use Hmisc package's approach
+smean.cl.boot(aut_trial$diff, conf.int = 0.90, B = 2000)
+```
+
+## Bootstrap for Population Mean, 2
+
+Now we'll use the boot package...
+
+```{r}
+#| echo: true
+## use boot package
+bootMean <- function(data, indices) mean(data[indices], na.rm = TRUE)
+
+set.seed(4317)
+d <- boot(aut_trial$diff, bootMean, R = 2000)
+
+boot.ci(d, conf = 0.9, type = "perc")
+```
+
+## Bootstrap for Population Median
+
+New summary statistic (recall sample median = `r median(aut_trial$diff)`)
+
+```{r}
+#| echo: true
+## use boot package
+bootMedian <- function(data, indices) median(data[indices], na.rm = TRUE)
+
+set.seed(4318)
+d <- boot(aut_trial$diff, bootMedian, R = 2000)
+
+boot.ci(d, conf = 0.9, type = "perc")
+```
+
+## Wilcoxon signed rank procedure
+
+Estimates pseudo-median (assume paired differences come from a symmetric population)
+
+```{r}
+#| echo: true
+
+w1 <- wilcox.test(aut_trial$diff, conf.int = TRUE, conf.level = 0.90) 
+
+tidy(w1) |> gt() |> gt_theme_538()
+```
+
+Impact of the continuity correction?
+
+```{r}
+#| echo: true
+
+w2 <- wilcox.test(aut_trial$diff, correct = FALSE, 
+                  conf.int = TRUE, conf.level = 0.90) 
+
+tidy(w2) |> gt() |> gt_theme_guardian()
+```
+
+## Conclusions?
+
+Parameter | Est. | 90% CI | Approach
+----------: | :---: | :--------------: | :------------------
+Mean | 16 | 5, 27 | t test or linear model
+Mean | 16 | 7, 26 | bootstrap via `Hmisc`
+Mean | 16 | 7.5, 26 | bootstrap via `boot`
+Median | 15 | 10, 20 | bootstrap via `boot`
+Pseudo-Median | 15 | 5, 25 | Wilcoxon with c.c.
+Pseudo-Median | 15 | 5, 22.5 | Wilcoxon without c.c.
+
+With only 10 paired differences in our sample, it's hard to say much about the population's distribution.
+
+# Working with Independent Samples
+
+## The Supraclavicular Data
+
+These come from the Cleveland Clinic's [Statistical Education Dataset Repository](https://www.lerner.ccf.org/qhs/datasets/), which is a great source of examples for me, but not for your Project B.
+
+```{r}
+#| echo: true
+
+supra_raw <- read_csv("c13/data/Supraclavicular.csv", show_col_types = F) |>
+  clean_names() |> mutate(subject = as.character(subject))
+
+dim(supra_raw)
+```
+
+::: aside
+The Supraclavicular data come from Roberman et al. "Combined Versus Sequential Injection of Mepivacaine and Ropivacaine for Supraclavicular Nerve Blocks". *Reg Anesth Pain Med* 2011; 36: 145-50.
+:::
+
+## Supraclavicular Study Objective {.smaller}
+
+> This study consisted of 103 patients, aged 18 to 70 years, who were scheduled to undergo an upper extremity procedure suitable for supraclavicular anesthesia. These procedures were expected to be associated with considerable postoperative pain. 
+
+> We tested the hypothesis that sequential supraclavicular injection of 1.5% mepivacaine followed 90 seconds later by 0.5% ropivacaine provides a quicker onset and a longer duration of analgesia than an equidose combination of the 2 local anesthetics.
+
+> Patients were randomly assigned to either (1) combined group-ropivacaine and mepivacaine mixture; or (2) sequential group-mepivacaine followed by ropivacaine. The primary outcome was time to 4-nerve sensory block onset. 
+
+All quotes here are from the [Supraclavicular study description](https://www.lerner.ccf.org/qhs/datasets/)
+
+## Study Description (1/2)
+
+- We selected 103 subjects from the population of all people:
+  - ages 18-70 years
+  - scheduled to undergo an upper extremity procedure suitable for supraclavicular anesthesia
+  - who would have been eligible to participate in the study (details are fuzzy)
+
+## Study Description (2/2)
+
+- We have randomly allocated subjects to one of two treatments (sequential or mixture.)
+- For each subject, we have an outcome (onset time) associated with the treatment they received.
+- The subjects were sampled from the population of interest independently of each other, so that the outcomes we see are not matched (or paired) in any way.
+
+## Key Question
+
+Does the (true population) mean onset time differ between the two treatments?
+
+### Variables of interest to us (n = 103)
+
+Variable | Description
+------- | -------------------
+`group` | 1 = mixture, 2 = sequential (randomly assigned)
+`onset_sensory` | Time to 4 nerve sensory block onset (min.)
+
+## Creating the `supra` analytic data
+
+```{r}
+#| echo: true
+supra <- supra_raw |> 
+  mutate(trt = fct_recode(factor(group), "mixture" = "1", 
+                            "sequential" = "2")) |>
+  rename(onset = onset_sensory) |>
+  select(subject, trt, onset, group)
+
+glimpse(supra)
+```
+
+## Summaries: Onset by Treatment
+
+```{r}
+#| echo: true
+#| message: false
+favstats(onset ~ trt, data = supra) |>
+  gt()
+```
+
+If we're comparing the difference in means, in which order will we want to see the two `trt`s?
+
+## DTDP: Compare onset by treatment
+
+We'll add a blue diamond to indicate the means in each group, too.
+
+```{r}
+#| echo: true
+#| output-location: slide
+ggplot(supra, aes(x = trt, y = onset)) +
+  geom_violin(aes(fill = trt)) +
+  geom_boxplot(width = 0.3, outlier.size = 2, notch = T) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 4, fill = "blue") +
+  guides(fill = "none") +
+  scale_fill_viridis_d(alpha = 0.3) + 
+  coord_flip() +
+  labs(y = "Time to 4-nerve sensory block onset",
+       x = "",
+       title = "Comparing Onset Time by Treatment",
+       subtitle = str_glue("Supraclavicular data: n = ", nrow(supra), " across the two treatments."))
+```
+
+
+
+
+
+## Formal Language of Hypothesis Testing
+
+- Null hypothesis $H_0$
+  - $H_0$: population mean onset time with sequential = population mean onset time with mixture
+  - $H_0$: difference in population means (sequential - mixture) = 0
+
+## Formal Language of Hypothesis Testing
+
+- Alternative (research) hypothesis $H_A$ or $H_1$
+  - $H_A$: population mean onset time with sequential $\neq$ population mean onset time with mixture
+  - $H_A$: difference in population means (sequential - mixture) $\neq$ 0
+
+## Two (related) next steps
+
+1. Given the data, we can then calculate an appropriate test statistic, then compare that test statistic to an appropriate probability distribution to obtain a $p$ value. Small $p$ values favor $H_A$ over $H_0$.
+2. More usefully, we can use an appropriate probability distribution to help use the data to construct an appropriate **confidence interval** for the difference in population means.
+
+## Comparing Two Population Means
+
+With **independent samples** (as in this scenario) we have at least four alternatives.
+
+1. Compare population means using a pooled t test or CI.
+2. Compare population means using a Welch's t test/ CI.
+3. Compare population means using a bootstrap approach to generate a test or CI.
+4. Compare the difference in locations using a Wilcoxon rank sum test or CI.
+
+## Option 1: t test
+
+Compare population means using a pooled t test or confidence interval
+
+  - This assumes equal population variances of the outcome in the two treatment groups.
+  - This also assumes Normality of the outcome in each of the two treatment groups.
+  - This is the result of a linear model of outcome ~ treatment.
+
+## Model yielding pooled t-test
+
+- Pooled t test and associated 90% CI for the difference in population means.
+
+```{r}
+#| echo: true
+m1 <- lm(onset ~ trt, data = supra)
+
+tidy(m1, conf.int = TRUE, conf.level = 0.90) |>
+  gt() |> gt_theme_guardian()
+```
+
+What can we conclude about the difference in means?
+
+## Two-Sample `t.test()` approach
+
+We can obtain the same results for the t test comparing two independent samples, and assuming equal variances, with...
+
+```{r}
+#| echo: true
+t.test(onset ~ trt, data = supra, 
+       var.equal = TRUE, conf.level = 0.90)
+```
+
+## Assessing Pooled T test Assumptions
+
+In preparing a t test with equal variances, we assume that:
+
+- each of the samples (sequential and mixture) are drawn from a Normally distributed population
+- each of those populations have the same variance
+
+Do these seem like reasonable assumptions in this case? (See plot on next slide)
+
+## Onset Time by Treatment
+
+```{r}
+ggplot(supra, aes(x = trt, y = onset)) +
+  geom_violin(aes(fill = trt)) +
+  geom_boxplot(width = 0.3, outlier.size = 2, notch = T) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 4, fill = "blue") +
+  guides(fill = "none") +
+  scale_fill_viridis_d(alpha = 0.3) + 
+  coord_flip() +
+  labs(y = "Time to 4-nerve sensory block onset",
+       x = "",
+       title = "Comparing Onset Time by Treatment")
+```
+
+## Option 2: Welch's t test
+
+Let's first consider dropping the "equal variances" assumption. Instead, we'll compare the population means using Welch's t test or confidence interval
+
+- This does not assume equal population variances of the outcome.
+- This does assume Normality of the outcome in each of the two treatment groups.
+
+## Welch's t test approach
+
+Here is the Welch's t test comparing two independent samples, without assuming equal variances...
+
+```{r}
+#| echo: true
+t.test(onset ~ trt, data = supra, conf.level = 0.90)
+```
+
+## Comparing the two "T tests"
+
+```{r}
+#| echo: true
+t1 <- t.test(onset ~ trt, data = supra, conf.level = 0.90,
+             var.equal = TRUE)
+w1 <- t.test(onset ~ trt, data = supra, conf.level = 0.90)
+
+bind_rows(tidy(t1), tidy(w1)) |>
+  select(method, estimate, conf.low, conf.high, p.value) |> 
+  gt() |> gt_theme_espn()
+```
+
+## Balanced Design?
+
+It turns out that if we have a **balanced design** (equal sample sizes in the two groups) then the Pooled t approach and the Welch's t approach yield essentially the same results. 
+
+- So these will be very similar if $n_1 = n_2$.
+
+```{r}
+supra |> count(trt)
+```
+
+
+## Assuming Normality?
+
+```{r}
+#| echo: true
+#| output-location: slide
+ggplot(supra, aes(x = trt, y = onset)) +
+  geom_violin(aes(fill = trt)) +
+  geom_boxplot(width = 0.3, outlier.size = 2, notch = T) +
+  stat_summary(fun = "mean", geom = "point",
+               shape = 23, size = 4, fill = "blue") +
+  guides(fill = "none") +
+  scale_fill_viridis_d(alpha = 0.3) + 
+  coord_flip() +
+  labs(y = "Minutes to 4-nerve sensory block onset",
+       x = "",
+       title = "Comparing Onset Time by Treatment")
+```
+
+- Does it seem reasonable to assume that the onset times are Normally distributed across the populations of sequential and mixed subjects, based on these samples of data?
+
+## Can we plot Normal Q-Q plots?
+
+Sure.
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(
+  data = supra |> filter(trt == "sequential"), aes(sample = onset)) +
+  geom_qq() + geom_qq_line(col = "tomato") +
+  theme(aspect.ratio = 1) + 
+  labs(title = "Sequential Group", y = "Onset Time (min.)",
+       x = "Expectation for Standard Normal")
+
+p2 <- ggplot(
+  data = supra |> filter(trt == "mixture"), aes(sample = onset)) +
+  geom_qq() + geom_qq_line(col = "firebrick") +
+  theme(aspect.ratio = 1) + 
+  labs(title = "Mixture Group", y = "Onset Time (min.)", 
+       x = "Expectation for Standard Normal")
+
+p1 + p2  
+```
+
+
+## Option 3: Bootstrap
+
+Compare the population means using a bootstrap approach to generate a confidence interval.
+
+- This does not assume either equal population variances or Normality.
+
+## `bootdif` bootstrap CI approach
+
+Consider the **bootstrap**, without assuming the population distributions are Normal, or  have the same variance, at the expense of requiring some random sampling, which can lead to some conflicts. 
+
+- We'll use the `bootdif()` function I've provided in the `Love-boost.R` script.
+
+```{r}
+#| echo: true
+
+set.seed(431011)
+bootdif(y = supra$onset, g = supra$trt, conf.level = 0.90, B.reps = 2000)
+```
+
+## Using a bootstrap approach
+
+- If we'd set a different seed or selected a different number of bootstrap replications, we'd get a different result.
+
+```{r}
+#| echo: true
+
+set.seed(431012)
+bootdif(y = supra$onset, g = supra$trt, conf.level = 0.90, B.reps = 2000)
+
+bootdif(y = supra$onset, g = supra$trt, conf.level = 0.90, B.reps = 10000)
+```
+
+- This doesn't mean to suggest that we "shop around" until we find an appealing result, of course.
+
+## Using `infer`: 90% CI via Bootstrap
+
+```{r}
+#| echo: true
+set.seed(431010) ## set a seed
+null_distribution_supra <- supra |>
+  specify(formula = onset ~ trt) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "diff in means", order = c("sequential", "mixture"))
+
+percentile_ci <- null_distribution_supra |>
+  get_confidence_interval(level = 0.90, type = "percentile")
+
+percentile_ci
+```
+
+
+## Wilcoxon-Mann-Whitney rank sum
+
+Compare the population locations with a Wilcoxon rank sum test or confidence interval
+
+- This does not assume either equal population variances or Normality, but doesn't describe the difference in population means or medians.
+- The estimator for the rank sum test is a difference in location parameters. 
+    - This estimates the median of the difference between a sample from x and a sample from y.
+
+## Wilcoxon-Mann-Whitney Rank Sum
+
+$H_0$: Difference in Location Parameters is 0, vs. two-tailed $H_A$: Difference in Location Parameters $\neq$ 0
+
+```{r}
+#| echo: true
+
+wilcox.test(onset ~ trt, data = supra, alt = "two.sided", mu = 0, 
+            paired = FALSE, conf.int = TRUE, conf.level = 0.90)
+```
+
+## Our Gathered Estimates
+
+Method | $\mu_S - \mu_M$ | 90% CI | p-value
+------------ | -------: | -------------: | ------:
+Pooled t | 3.832 | (-0.019, 7.682) | 0.102
+Welch's t | 3.832 | (-0.021, 7.685) | 0.102
+Bootstrap B | 3.832 | (0.120, 7.481) | < 0.10
+Bootstrap I | 3.832 | (0.073, 7.520) | < 0.10
+Rank Sum  | 3     | ( 1, 6) | 0.020
+
+- Bootstrap B = Bootstrap CI via `bootdif` function
+- Bootstrap I = Permutation test via `infer`; bootstrap CI
+
+## Thinking about those estimates
+
+All of these results are in minutes (recall 0.08 minutes = 4.8 seconds) so are these **clinically meaningful** differences in this context?
+
+- Do these data involve random sampling?
+- What population(s) do these data represent?
+- What can we say about the *p* values associated with these approaches?
+
+## Next Time
+
+What if we want to compare population proportions/rates/percentages rather than means?
+
+## Session Information
+
+```{r}
+#| echo: true
+session_info()
+```
