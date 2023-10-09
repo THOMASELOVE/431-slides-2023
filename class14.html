@@ -1721,8 +1721,8 @@ probability of success
 </div>
 </div>
 </section>
-<section id="method-2-the-clopper-pearson-procedure" class="slide level2">
-<h2>Method 2: The Clopper-Pearson Procedure</h2>
+<section id="method-2-clopper-pearson-procedure" class="slide level2">
+<h2>Method 2: Clopper-Pearson Procedure</h2>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1"></a>method2 <span class="ot">&lt;-</span> <span class="fu">binom.test</span>(<span class="at">x =</span> <span class="dv">51</span>, <span class="at">n =</span> <span class="dv">326</span>, <span class="at">conf.level =</span> <span class="fl">0.95</span>, </span>
 <span id="cb12-2"><a href="#cb12-2"></a>                      <span class="at">ci.method =</span> <span class="st">&quot;Clopper-Pearson&quot;</span>)</span>
@@ -1756,8 +1756,8 @@ probability of success
 </div>
 </div>
 </section>
-<section id="method-3-the-score-procedure" class="slide level2">
-<h2>Method 3: The Score Procedure</h2>
+<section id="method-3-score-procedure" class="slide level2">
+<h2>Method 3: Score Procedure</h2>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1"></a>method3 <span class="ot">&lt;-</span> <span class="fu">binom.test</span>(<span class="at">x =</span> <span class="dv">51</span>, <span class="at">n =</span> <span class="dv">326</span>, <span class="at">conf.level =</span> <span class="fl">0.95</span>, </span>
 <span id="cb13-2"><a href="#cb13-2"></a>                   <span class="at">ci.method =</span> <span class="st">&quot;Score&quot;</span>)</span>
@@ -1791,8 +1791,8 @@ probability of success
 </div>
 </div>
 </section>
-<section id="method-4-the-agresti-coull-procedure" class="slide level2">
-<h2>Method 4: The Agresti-Coull Procedure</h2>
+<section id="method-4-agresti-coull-procedure" class="slide level2">
+<h2>Method 4: Agresti-Coull Procedure</h2>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1"></a>method4 <span class="ot">&lt;-</span> <span class="fu">binom.test</span>(<span class="at">x =</span> <span class="dv">51</span>, <span class="at">n =</span> <span class="dv">326</span>, <span class="at">conf.level =</span> <span class="fl">0.95</span>, </span>
 <span id="cb14-2"><a href="#cb14-2"></a>                   <span class="at">ci.method =</span> <span class="st">&quot;agresti-coull&quot;</span>)</span>
@@ -1826,8 +1826,8 @@ probability of success
 </div>
 </div>
 </section>
-<section id="method-5-the-plus4-procedure" class="slide level2">
-<h2>Method 5: The Plus4 Procedure</h2>
+<section id="method-5-plus4-procedure" class="slide level2">
+<h2>Method 5: Plus4 Procedure</h2>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1"></a>method5 <span class="ot">&lt;-</span> <span class="fu">binom.test</span>(<span class="at">x =</span> <span class="dv">51</span>, <span class="at">n =</span> <span class="dv">326</span>, <span class="at">conf.level =</span> <span class="fl">0.95</span>, </span>
 <span id="cb15-2"><a href="#cb15-2"></a>                   <span class="at">ci.method =</span> <span class="st">&quot;plus4&quot;</span>)</span>

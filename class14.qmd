@@ -213,7 +213,7 @@ tidy1 |> select(estimate, conf.low, conf.high, statistic, parameter) |>
   kbl(digits = 4) |> kable_classic(font_size = 28, full_width = F)
 ```
 
-## Method 2: The Clopper-Pearson Procedure
+## Method 2: Clopper-Pearson Procedure
 
 ```{r}
 #| echo: true
@@ -225,7 +225,7 @@ tidy2 |> select(estimate, conf.low, conf.high, statistic, parameter) |>
   kbl(digits = 4) |> kable_classic(font_size = 28, full_width = F)
 ```
 
-## Method 3: The Score Procedure
+## Method 3: Score Procedure
 
 ```{r}
 #| echo: true
@@ -237,7 +237,7 @@ tidy3 |> select(estimate, conf.low, conf.high, statistic, parameter) |>
   kbl(digits = 4) |> kable_classic(font_size = 28, full_width = F)
 ```
 
-## Method 4: The Agresti-Coull Procedure
+## Method 4: Agresti-Coull Procedure
 
 ```{r}
 #| echo: true
@@ -249,7 +249,7 @@ tidy4 |> select(estimate, conf.low, conf.high, statistic, parameter) |>
   kbl(digits = 4) |> kable_classic(font_size = 28, full_width = F)
 ```
 
-## Method 5: The Plus4 Procedure
+## Method 5: Plus4 Procedure
 
 ```{r}
 #| echo: true

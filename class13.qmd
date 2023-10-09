@@ -97,7 +97,7 @@ sd(aline$lines)
 sd(aline$lines, na.rm = TRUE)
 ```
 
-## Summarizing `aline` line counts
+## Summarizing `aline` counts
 
 ```{r}
 #| echo: true
