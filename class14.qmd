@@ -32,7 +32,6 @@ format:
 
 library(Epi) # for twoby2() function
 library(readxl) # to import an Excel file
-library(pwr) # specialized power functions
 library(xfun) # for session_info()
 library(kableExtra)
 library(broom)
@@ -55,7 +54,7 @@ We'll estimate a confidence interval around an unknown population proportion, or
 
 The sample proportion is called $\hat{p}$, which is sometimes, unfortunately, symbolized as $p$.
 
--   This $\hat{p}$ is the sample proportion - not a *p* value.
+-   $\hat{p}$ is the sample proportion - not a *p* value.
 
 ## An Example from *JAMA Pediatrics*
 
@@ -401,7 +400,7 @@ The determination as to whether the study design creates paired or independent s
 
 ## A Polling Example {.smaller}
 
--   200 adult Ohio residents agreed to participate in a poll both two months ago and again today. Each of the 200 people met the polling organization's standards for a "likely voter in the 2022 election". 100 of those polled were under the age of 50 and the rest were 50 or older.
+-   200 adult Ohio residents agreed to participate in a poll both two months ago and again today. Each of the 200 people met the polling organization's standards for a "likely voter in the next election". 100 of those polled were under the age of 50 and the rest were 50 or older.
 -   In between the two polls, a major news event occurred which was relevant to Candidate X.
 
 We asked them the same question at both times: "Are you considering voting for Candidate X?" We are interested in understanding what the data tell us about:
