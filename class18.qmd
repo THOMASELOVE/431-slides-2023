@@ -1,0 +1,38 @@
+---
+title: "431 Class 14"
+author: Thomas E. Love, Ph.D.
+date: "2023-10-12"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 14 | 2023-10-12 | <https://thomaselove.github.io/431-2023/>"
+---
+
+
+## Today's Agenda
+
+- A Linear Model using a Quantitative Predictor
+    - Using tidy, glance and augment from the broom package
+    - Thinking about Residual Plots
+    - Thinking about a Power Transformation
+    - Correlation vs. Causation: [A Brief Example](http://www.tylervigen.com/spurious-correlations)
+
+## Today's Packages
+
+```{r}
+#| echo: true
+#| message: false
+
+library(broom); library(patchwork)
+library(Hmisc); library(mosaic)
+library(janitor); library(naniar)
+library(tidyverse)
+
+theme_set(theme_bw())
+```

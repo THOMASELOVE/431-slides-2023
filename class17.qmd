@@ -1,0 +1,558 @@
+---
+title: "431 Class 17"
+author: Thomas E. Love, Ph.D.
+date: "2023-10-26"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 17 | 2023-10-26 | <https://thomaselove.github.io/431-2023/>"
+---
+
+
+## Today's Agenda, part 1: Regression
+
+- Missing values and complete case vs. single imputation
+- Partitioning to *development* (training) vs. *evaluation* (test)
+- Power transformations and the Box-Cox approach
+- What can `tidy()`, `glance()` and `augment()` do?
+  - Evaluating predictions: RMSPE and MAPE, validated $R^2$
+  - Identifying poorly fit observations
+- Fitting a robust linear model to assess the impact of outliers
+
+## Remainder of Today's Agenda
+
+- Comparing Means, or Comparing Proportions
+  - One-sided vs. Two-sided hypotheses, CIs
+- Power / Sample Size "tricks"
+  - One-sided vs. Two-sided approaches
+- How will the TAs and I grade your Project A portfolio?
+
+## Today's Packages
+
+```{r}
+#| echo: true
+#| message: false
+
+library(broom)
+library(car)         ## for boxCox 
+library(gt)
+library(gtExtras)    ## for gt themes, mostly
+library(janitor)
+library(MASS)        ## for rlm() fitting
+library(mosaic)      ## for df_stats() as well as favstats()
+library(naniar)
+library(patchwork)
+library(simputation) ## to do single imputation
+library(tidyverse)
+
+theme_set(theme_bw())
+```
+
+# Issues Related to Regression
+
+## County Health Rankings 2022 Data 
+
+- `lowbwt`: Percentage of live births with low birthweight (below 2,500 grams ~ 5.5 pounds), which we'll use as the **outcome**
+- `teenbirth`: Number of births per 1,000 female population ages 15-19 will be our **predictor**
+
+each sourced from National Center for Health Statistics - Natality files, 2014-2020.
+
+- plus `state`, `county` and `year` (all values are 2022).
+
+## Ingest `chr22` data
+
+```{r}
+#| echo: true
+chr22 <- read_rds("c17/data/chr22.rds")
+
+chr22
+```
+
+## Missing Data?
+
+```{r}
+#| echo: true
+miss_var_summary(chr22)
+```
+
+```{r}
+#| echo: true
+miss_case_table(chr22)
+```
+
+
+## Complete Cases assumes MCAR
+
+```{r}
+#| echo: true
+chr22_cc <- chr22 |> drop_na()
+
+df_stats(~ lowbwt + teenbirth, data = chr22_cc) |> 
+  gt() |> gt_theme_dark()
+
+df_stats(~ lowbwt + teenbirth, data = chr22_cc) |> 
+  gt() |> gt_theme_dark() |>
+  fmt_number(decimals = 2, columns = -c(response, n, missing)) |>
+  tab_options(table.font.size = pct(70)) # good font size for my slides
+```
+
+
+## Single Imputation assumes MAR
+
+Here's a first attempt. Does this work?
+
+```{r}
+#| echo: true
+chr22_imp1 <- chr22 |>
+  impute_rlm(teenbirth ~ lowbwt) |>
+  impute_rlm(lowbwt ~ teenbirth)
+
+df_stats(~ lowbwt + teenbirth, data = chr22_imp1) |> 
+  gt() |> gt_theme_espn() |>
+  fmt_number(decimals = 2, columns = c(2:8)) |>
+  tab_options(table.font.size = pct(70))
+```
+
+What is the problem with this? Why does this happen?
+
+## Single Imputation: Attempt 2
+
+```{r}
+#| echo: true
+chr22_imp <- chr22 |>
+  impute_lm(teenbirth ~ state) |>
+  impute_rlm(lowbwt ~ teenbirth)
+
+df_stats(~ lowbwt + teenbirth, data = chr22_imp) |> 
+  gt() |> gt_theme_espn() |>
+  fmt_number(decimals = 2, columns = c(2:8)) |>
+  tab_options(table.font.size = pct(70))
+```
+
+- The `impute_lm` step above imputes the state-wide mean among counties with complete `teenbirth` data to our missing `teenbirth` values. An imperfect solution.
+
+## Complete Cases Partitioning
+
+Partition our `r nrow(chr22_cc)` "complete case" counties in `chr22_cc` into a random sample of 500 for model development (training), leaving the rest for model evaluation (testing)...
+
+```{r}
+#| echo: true
+
+set.seed(20231026) # must set a seed for slice_sample()
+chr22_cc_train <- slice_sample(chr22_cc, n = 500, replace = FALSE)
+chr22_cc_test <- anti_join(chr22_cc, chr22_cc_train, 
+                           by = c("state", "county"))
+
+dim(chr22_cc_train)
+dim(chr22_cc_test)
+```
+
+## Partitioning after Single Imputation
+
+Partition our `r nrow(chr22_imp)` "complete case" counties in `chr22_imp` into a random sample of 20% for model development (training), leaving the other 80% for model evaluation (testing)...
+
+```{r}
+#| echo: true
+
+set.seed(2023431) 
+chr22_imp_train <- slice_sample(chr22_imp, prop = 0.2, replace = FALSE)
+chr22_imp_test <- anti_join(chr22_imp, chr22_imp_train, 
+                           by = c("state", "county"))
+
+dim(chr22_imp_train)
+dim(chr22_imp_test)
+```
+
+## Should We Transform our Outcome?
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(data = chr22_cc_train, aes(x = teenbirth, y = lowbwt)) +
+  geom_point() + 
+  geom_smooth(method = "loess", col = "slateblue", formula = y ~ x) +
+  labs(title = "Scatterplot with Loess Smooth",
+       y = "Low Birth Weight", x = "Teen Birth Rate")
+
+p2 <- ggplot(data = chr22_cc_train, aes(sample = lowbwt)) +
+  geom_qq() + geom_qq_line(col = "tomato") +
+  theme(aspect.ratio = 1) + 
+  labs(title = "Normal Q-Q plot",
+       y = "Low Birth Weight", x = "Expected N(0,1)")
+
+p1 + p2 + plot_annotation(title = "Complete Cases (Training)")
+```
+
+## Which Transformation to Choose?
+
+Box-Cox approach: can we get a suggested "power" to use when transforming our outcome?
+
+- Specify the model then apply `boxCox` from `car` package.
+- Here, all values of our outcome (`lowbwt`) are strictly positive. 
+  - If not, we'd have to add a constant so that they were.
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+m0 <- lm(lowbwt ~ teenbirth, data = chr22_cc_train)
+boxCox(m0)
+```
+
+## Using a Box-Cox plot
+
+Ladder of power transformations...
+
+Power ($\lambda$) | -2 | -1 | -0.5 | 0 | 0.5 | 1 | 2
+------------: | ---: | ---: | ---: | -----: | ---: | ---: | ---:
+Transformation | $\frac{1}{y^2}$ | $\frac{1}{y}$ | $\frac{1}{\sqrt{y}}$ | log $y$ | $\sqrt{y}$ | $y$ | $y^2$
+
+- In the Box-Cox plot, we're hoping to maximize the log-likelihood, so that's suggesting a transformation of our outcome with $\lambda$ near 0.
+- So let's try `log(lowbwt)` in our next model.
+- Remember: `log` in R is the natural logarithm, and `log10` is the base-10 log.
+
+## Logarithm of our outcome?
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(data = chr22_cc_train, aes(x = teenbirth, y = log(lowbwt))) +
+  geom_point() + 
+  geom_smooth(method = "loess", col = "royalblue", formula = y ~ x) +
+  geom_smooth(method = "lm", col = "red", formula = y ~ x, se = FALSE) +
+  labs(title = "Using the natural logarithm",
+       y = "log(Low Birth Weight)", x = "Teen Birth Rate")
+
+p2 <- ggplot(data = chr22_cc_train, aes(x = teenbirth, y = log10(lowbwt))) +
+  geom_point() + 
+  geom_smooth(method = "loess", col = "magenta", formula = y ~ x) +
+  geom_smooth(method = "lm", col = "red", formula = y ~ x, se = FALSE) +
+  labs(title = "Using the base-10 logarithm",
+       y = "log10(Low Birth Weight)", x = "Teen Birth Rate")
+
+p1 + p2 + plot_annotation(title = "Complete Cases (Training)")
+```
+
+## Residuals: m0 (no transformation)
+
+```{r}
+#| echo: true
+
+m0 <- lm(lowbwt ~ teenbirth, data = chr22_cc_train)
+par(mfrow = c(1,2)); plot(m0, which = 1:2); par(mfrow = c(1,1))
+```
+
+
+## Residuals: m1 (log transformation)
+
+```{r}
+#| echo: true
+
+m1 <- lm(log(lowbwt) ~ teenbirth, data = chr22_cc_train)
+par(mfrow = c(1,2)); plot(m1, which = 1:2); par(mfrow = c(1,1))
+```
+
+## Assess Impact of Outliers
+
+- Fit "robust" linear model. Do coefficients change much?
+
+```{r}
+#| echo: true
+m1 <- lm(log(lowbwt) ~ teenbirth, data = chr22_cc_train)
+tidy(m1, conf.int = TRUE, conf.level = 0.90) |> 
+  gt() |> fmt_number(decimals = 4) |> gt_theme_dark()
+
+## rlm comes from the MASS package
+m1_rlm <- rlm(log(lowbwt) ~ teenbirth, data = chr22_cc_train)
+tidy(m1_rlm, conf.int = TRUE, conf.level = 0.90) |> 
+  gt() |> fmt_number(decimals = 4) |> gt_theme_dark()
+```
+
+## Does the imputation change things?
+
+```{r}
+#| echo: true
+
+m0_imp <- lm(lowbwt ~ teenbirth, data = chr22_imp_train)
+boxCox(m0_imp)
+```
+
+## Imputation: untransformed model
+
+```{r}
+#| echo: true
+
+m0_imp <- lm(lowbwt ~ teenbirth, data = chr22_imp_train)
+par(mfrow = c(1,2)); plot(m0_imp, which = 1:2); par(mfrow = c(1,1))
+```
+
+## Imputation: log model
+
+```{r}
+#| echo: true
+
+m1_imp <- lm(log(lowbwt) ~ teenbirth, data = chr22_imp_train)
+par(mfrow = c(1,2)); plot(m1_imp, which = 1:2); par(mfrow = c(1,1))
+```
+
+## Imputation: $1/\sqrt{lowbwt}$ model
+
+```{r}
+#| echo: true
+
+m2_imp <- lm(lowbwt^(-0.5) ~ teenbirth, data = chr22_imp_train)
+par(mfrow = c(1,2)); plot(m2_imp, which = 1:2); par(mfrow = c(1,1))
+```
+
+## Complete Cases: `m1` coefficients
+
+```{r}
+#| echo: true
+
+m1 <- lm(log(lowbwt) ~ teenbirth, data = chr22_cc_train)
+
+tidy(m1, conf.int = TRUE, conf.level = 0.90) |>
+  gt() |> gt_theme_dark() |>
+  fmt_number(columns = -term, decimals = 4) |>
+  tab_options(table.font.size = pct(60))
+
+glance(m1) |>
+  round_half_up(digits = c(4, 4, 3, 2, 4, 0, 2, 1, 1, 1, 0, 0)) |>
+  gt() |> gt_theme_dark() |>
+  tab_options(table.font.size = pct(50))
+```
+
+## After Imputation: `m1_imp` coefficients
+
+```{r}
+#| echo: true
+
+m1_imp <- lm(log(lowbwt) ~ teenbirth, data = chr22_imp_train)
+
+tidy(m1_imp, conf.int = TRUE, conf.level = 0.90) |>
+  gt() |> gt_theme_dark() |>
+  fmt_number(columns = -term, decimals = 4) |>
+  tab_options(table.font.size = pct(60))
+
+glance(m1_imp) |>
+  round_half_up(digits = c(4, 4, 3, 2, 4, 0, 2, 1, 1, 1, 0, 0)) |>
+  gt() |> gt_theme_dark() |>
+  tab_options(table.font.size = pct(50))
+```
+
+## Complete Cases: Using `augment()`
+
+```{r}
+#| echo: true
+augment(m1) |> head(3)
+```
+
+```{r}
+#| echo: true
+m1_aug <- augment(m1, data = chr22_cc_train)
+m1_aug |> head(3)
+```
+
+Can we compare the `.fitted` values to `lowbwt` here?
+
+## Backing out of the transformation
+
+```{r}
+#| echo: true
+m1_aug <- augment(m1, data = chr22_cc_train) |>
+  mutate(fits = exp(.fitted), res = lowbwt - fits)
+
+m1_aug |> 
+  select(state, county, lowbwt, fits, res, .fitted, .resid) |>
+  arrange(desc(abs(res))) |> head(5)
+```
+
+- These are the five counties fit least well by this model.
+
+## Predicting into the Test Set
+
+- Note the use of `newdata` here, rather than `data`.
+
+```{r}
+#| echo: true
+m1_test <- augment(m1, newdata = chr22_cc_test)
+
+m1_test |> head(3)
+```
+
+This would be great, except that we need to back out of the transformation.
+
+## Backing out of log transformation
+
+Predicting into the Test Set
+
+- Note the use of `newdata` here, rather than `data`.
+
+```{r}
+#| echo: true
+m1_test <- augment(m1, newdata = chr22_cc_test) |>
+  mutate(fits = exp(.fitted), res = lowbwt - fits) |>
+  select(state, county, lowbwt, fits, res, everything())
+
+m1_test |> head(3)
+```
+
+## Summarizing Quality of Predictions
+
+1. Squared Correlation of (outcome, fits) = validated $R^2$
+2. Root Mean Squared Prediction Error (RMSPE)
+3. Mean Absolute Prediction Error (MAPE)
+4. Maximum Absolute Prediction Error
+5. Median Absolute Prediction Error
+
+## Prediction Quality in Training Set
+
+```{r}
+#| echo: true
+
+m1_test |>
+  summarise(val_r2 = cor(lowbwt, fits)^2,
+            RMSPE = sqrt(mean((lowbwt-fits)^2)),
+            MAPE = mean(abs(lowbwt - fits)),
+            maxAPE = max(abs(lowbwt - fits)),
+            medianAPE = median(abs(lowbwt - fits))) |>
+  round_half_up(digits = c(4, 3, 3, 2, 3)) |>
+  gt() |> gt_theme_guardian() |> tab_options(table.font.size = pct(75))
+```
+
+# Issues beyond Regression
+
+## Potential Research Hypotheses
+
+- $H_0: \mu_1 - \mu_2 = 0$ vs. $H_A: \mu_1 - \mu_2 \neq 0$
+
+as compared to
+
+- $H_0: \mu_1 - \mu_2 \geq 0$ vs. $H_A: \mu_1 - \mu_2 < 0$
+
+is an example of a two-sided (top) vs. one-sided research hypothesis.
+
+- When might this arise?
+
+## Carboxyhemoglobin Study
+
+(**Source**: Pagano and Gauvreau, Exercise 11.4.11.) We have a group of 121 non-smokers and a group of 75 cigarette smokers. It is believed that the mean carboxyhemoglobin (COHb) level of the smokers must be higher than the mean level of the non-smokers. Laboratory measurement of COHb is the only routinely available blood test for diagnosis of CO poisoning. There is no reason to assume that the underlying population variances are identical.
+
+Sample (simulated) data are contained in the `carbox.csv` file. What can we conclude, with 90% confidence?
+
+## The `carbox` data
+
+```{r}
+#| echo: true
+carbox <- read_csv("c17/data/carbox.csv", show_col_types = FALSE) |>
+  clean_names() |> 
+  mutate(group = fct_relevel(factor(group), "smoker")) 
+
+favstats(cohb ~ group, data = carbox) |>
+  gt() |> gt_theme_guardian()
+```
+
+## Appropriate Hypotheses
+
+- $H_A$: population mean of COHb in smokers is greater than population mean of COHb in non-smokers, or $\mu_S > \mu_{NS}$
+
+- $H_0$: $\mu_S \leq \mu_{NS}$
+
+Why do we want a one-sided (one-tailed) test, and thus a one-sided confidence interval here?
+
+## Two-sided vs. One-sided 90% confidence intervals
+
+```{r}
+#| echo: true
+t.test(cohb ~ group, data = carbox, conf.level = 0.90) |>
+  tidy() |>
+  gt() |> fmt_number(decimals = 3)
+```
+
+```{r}
+#| echo: true
+t.test(cohb ~ group, data = carbox, conf.level = 0.90, 
+       alternative = "greater") |>
+  tidy() |>
+  gt() |> fmt_number(decimals = 3)
+```
+
+## 90% two-sided CI vs. 95% one-sided CI
+
+```{r}
+#| echo: true
+t.test(cohb ~ group, data = carbox, conf.level = 0.90) |>
+  tidy() |>
+  gt() |> fmt_number(decimals = 3)
+```
+
+```{r}
+#| echo: true
+t.test(cohb ~ group, data = carbox, conf.level = 0.95, 
+       alternative = "greater") |>
+  tidy() |>
+  gt() |> fmt_number(decimals = 3)
+```
+
+- Why does this happen?
+
+## 1-sided vs. 2-sided power calculations
+
+In `power.t.test()` or `power.prop.test()` you can specify your `alternative` with either `two.sided` or `one.sided`.
+
+```{r}
+#| echo: true
+power.prop.test(p1 = 0.5, p2 = 0.4, sig.level = 0.05, power = 0.80,
+                alternative = "two.sided") |> tidy()
+
+power.prop.test(p1 = 0.5, p2 = 0.4, sig.level = 0.05, power = 0.80,
+                alternative = "one.sided") |> tidy()
+```
+
+
+## Some Power / Sample Size "tricks"
+
+- Estimating the standard deviation for a new measure
+  - Sometimes you can get a person to tell you the minimum important difference in means they'd like to distinguish, but they don't have a standard deviation available (from pilot data or the literature)
+  - If they know the range of the measure, try estimating sd with range/4.
+
+## Some Power / Sample Size "tricks"
+
+- Using pilot data to select a minimum clinically important difference
+  - Remember that the pilot (to be interesting) was probably a little lucky, and use something smaller than the pilot study's observed effect as your minimum clinically important effect.
+  - You may also want to expand the estimate of the standard deviation when comparing means.
+
+## Some Power / Sample Size "tricks"
+
+- Balanced designs are always easier to justify **if** getting data from one group is as easy as another. Sometimes, it isn't.
+- Remember the first question: what is the budget?
+
+## What are we looking for in Project A?
+
+- It's **your job** to get all this in on time. Severe penalties for lateness.
+
+1. Initial Check by TAs and Dr. Love by 9 AM on 2023-11-01
+
+- All four files (.rds, .qmd, .html and video) and self-evaluation submitted properly, time of submission, partner 1-pager, project title, name/date/table of contents OK (correct 17 headings in HTML), session information items
+
+## Getting to a graded Project A
+
+Step 2. Rds/qmd/video checks
+
+Step 3. HTML checks
+
+Step 4. Deeper reviews of Analysis 1-3
+
+Step 5. (Dr. Love) Video reviews (introduce yourselves, with faces visible, at start, and stick to the 3 minute limit)
+
+Step 6. (Dr. Love) Self-Evaluations and Review of Selected Pieces of Report
+
+**Aim**: Feedback report to each project group by **1 PM Thursday 2023-11-09**.
