@@ -1,0 +1,1262 @@
+---
+title: "431 Class 19"
+author: Thomas E. Love, Ph.D.
+date: "2023-11-02"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 19 | 2023-11-02 | <https://thomaselove.github.io/431-2023/>"
+---
+
+## Today's Agenda
+
+1. Exploration and Initial Data Summaries, Partitioning
+2. How might we transform our outcome? (Box-Cox?)
+3. Building Candidate Prediction Models 
+    - Assessing coefficients with `tidy()`
+    - Obtaining summaries of fit with `glance()`
+4. Checking Regression Assumptions
+    - Five Types of Residual Plots (3 are new today)
+5. Assessing the candidates, in training and test samples
+
+## 431 strategy: "most useful" model?
+
+> Aristotle's advice: *Tell them what you will tell them. Tell them. Tell them what you told them.*
+
+1. Split the data into a development (model training) sample of about 70-80% of the observations, and a holdout (model test) sample, containing the remaining observations.
+2. Develop candidate models using the development sample.
+3. Assess the quality of fit for candidate models within the development sample.
+
+## 431 strategy: "most useful" model?
+
+4. Check adherence to regression assumptions in the development sample.
+5. When you have candidates, assess them based on the accuracy of the predictions they make for the data held out (and thus not used in building the models.) 
+6. Select a "final" model for use based on the evidence in steps 3, 4 and especially 5.
+
+## Today's Packages
+
+```{r}
+#| echo: true
+#| message: false
+
+library(janitor)       # clean_names(), tabyl(), etc. 
+library(naniar)        # identifying/dealing with NA
+library(patchwork)     # combining ggplot2 plots
+library(broom)         # for tidy(), glance(), augment()
+library(car)           # for boxCox
+library(corrr)         # for correlation matrix
+library(GGally)        # for scatterplot matrix
+library(ggrepel)       # help with residual plots
+library(kableExtra)    # formatting tables
+library(mosaic)        # for favstats and df_stats
+library(sessioninfo)   # for session_info()
+library(simputation)   # for single impuation
+library(tidyverse)
+
+theme_set(theme_bw())
+options(tidyverse.quiet = TRUE)
+options(dplyr.summarise.inform = FALSE)
+```
+
+## Today's Data
+
+The `dm1.Rds` data contains four important variables + Subject ID on 500 adults with diabetes.
+
+We want to predict the subject's current Hemoglobin A1c level (`a1c`), using (up to) three predictors:
+
+- `a1c_old`: subject's Hemoglobin A1c (in %) two years ago
+- `age`: subject's age in years (between 30 and 70)
+- `income`: median income of subject's neighborhood (3 levels)
+
+## What roles will these variables play?
+
+`a1c` is our outcome, which we'll predict using three models ...
+
+1. Model 1: Use `a1c_old` alone to predict `a1c`
+2. Model 2: Use `a1c_old` and `age` together to predict `a1c`
+3. Model 3: Use `a1c_old`, `age`, and `income` together to predict `a1c`
+
+## The `dm1` data
+
+```{r}
+#| echo: true
+dm1 <- readRDS("c19/data/dm1.Rds")
+
+dm1
+```
+
+## More details on missing data
+
+- What do we learn here?
+
+```{r}
+#| echo: true
+miss_var_summary(dm1)
+miss_case_table(dm1)
+```
+
+## Today: Complete Cases
+
+Today, we'll assume all missing values are Missing Completely At Random (MCAR) and thus that we can safely drop all observations with missing data.
+
+```{r}
+#| echo: true
+dm1_cc <- dm1 |> drop_na()
+
+nrow(dm1)
+nrow(dm1_cc)
+```
+
+- Today, we will fit all three models with the `r nrow(dm1_cc)` subjects with complete data on all four variables.
+
+## Summarizing the `dm1_cc` tibble
+
+```{r}
+#| echo: true
+summary(dm1_cc)
+```
+
+## Numerical Summaries of our data
+
+```{r}
+#| echo: true
+dm1_cc |> 
+  df_stats(~ a1c + a1c_old + age) |>
+  rename(na = missing) |> kbl(digits = 2) |> 
+  kable_classic_2(font_size = 28, full_width = FALSE)
+```
+
+```{r}
+#| echo: true
+dm1_cc |> tabyl(income) |> adorn_pct_formatting()
+```
+
+## Three candidate models for `a1c`
+
+Our goal is accurate prediction of `a1c` values. Suppose we have decided to consider these three possible models...
+
+1. Model 1: Use `a1c_old` alone to predict `a1c`
+2. Model 2: Use `a1c_old` and `age` together to predict `a1c`
+3. Model 3: Use `a1c_old`, `age`, and `income` together to predict `a1c`
+
+## How shall we be guided by our data?
+
+> It can scarcely be denied that the supreme goal of all theory is to make the irreducible basic elements as simple and as few as possible without having to surrender the adequate representation of a single datum of experience. (A. Einstein)
+
+- Often, this is reduced to "make everything as simple as possible but no simpler"
+
+## How shall we be guided by our data?
+
+> Entities should not be multiplied without necessity. (Occam's razor)
+
+- Often, this is reduced to "the simplest solution is most likely the right one"
+
+## George Box's aphorisms
+
+> On Parsimony: Since all models are wrong the scientist cannot obtain a "correct" one by excessive elaboration. On the contrary following William of Occam he should seek an economical description of natural phenomena. Just as the ability to devise simple but evocative models is the signature of the great scientist so overelaboration and overparameterization is often the mark of mediocrity.
+
+## George Box's aphorisms
+
+> On Worrying Selectively: Since all models are wrong the scientist must be alert to what is importantly wrong. It is inappropriate to be concerned about mice when there are tigers abroad.
+
+- and, the most familiar version...
+
+> ... all models are approximations. Essentially, all models are wrong, but some are useful. However, the approximate nature of the model must always be borne in mind.
+
+# Partition the data: Training and Test Samples
+
+## Partitioning the 479 Complete Cases
+
+- Select a random sample (without replacement) of 70% of `dm1_cc` (60-80% is common) for model training. 
+- Hold out the other 30% for model testing, using `anti_join()` to pull subjects not in `dm1_cc_train`.
+
+```{r}
+#| echo: true
+set.seed(43119)
+
+dm1_cc_train <- dm1_cc |> 
+  slice_sample(prop = 0.7, replace = FALSE)
+dm1_cc_test <- 
+  anti_join(dm1_cc, dm1_cc_train, by = "subject")
+
+c(nrow(dm1_cc_train), nrow(dm1_cc_test), nrow(dm1_cc))
+```
+
+## Describing the join options
+
+from [Posit's Data Transformation Cheat Sheet](https://rstudio.github.io/cheatsheets/html/data-transformation.html)
+
+“Mutating Joins” join one table to columns from another, matching values with the rows that the correspond to. Each join retains a different combination of values from the tables.
+
+- `left_join(x, y)`: Join matching values from y to x.
+- `right_join(x, y)`: Join matching values from x to y.
+- `inner_join(x, y)`: Join data. retain only rows with matches.
+- `full_join(x, y)`: Join data. Retain all values, all rows.
+
+---
+
+![](c19/images/joins.png)
+
+## Describing the join options
+
+from [Posit's Data Transformation Cheat Sheet](https://rstudio.github.io/cheatsheets/html/data-transformation.html)
+
+"Filtering Joins" filter one table against the rows of another.
+
+- `semi_join(x, y)`: Return rows of x that have a match in y. Use to see what will be included in a join.
+- `anti_join(x, y)`: Return rows of x that do not have a match in y. Use to see what will not be included in a join.
+
+Use `by = join_by(col1, col2, ...)` to specify one or more common columns to match on.
+
+- For more, see [Chapter 20 of R4DS](https://r4ds.hadley.nz/joins)
+
+# Consider transforming the outcome.
+
+## Distribution of `a1c` (outcome)
+
+```{r}
+#| echo: true
+#| output-location: slide
+p1 <- ggplot(dm1_cc_train, aes(x = a1c)) +
+  geom_histogram(binwidth = 0.5, 
+                 fill = "slateblue", col = "white")
+
+p2 <- ggplot(dm1_cc_train, aes(sample = a1c)) + 
+  geom_qq(col = "slateblue") + geom_qq_line(col = "violetred") +
+  labs(y = "Observed a1c", x = "Normal (0,1) quantiles") + 
+  theme(aspect.ratio = 1)
+
+p3 <- ggplot(dm1_cc_train, aes(x = "", y = a1c)) +
+  geom_violin(fill = "slateblue", alpha = 0.1) + 
+  geom_boxplot(fill = "slateblue", width = 0.3, notch = TRUE,
+               outlier.color = "slateblue", outlier.size = 3) +
+  labs(x = "") + coord_flip()
+
+p1 + p2 - p3 +
+  plot_layout(ncol = 1, height = c(3, 2)) + 
+  plot_annotation(title = "Hemoglobin A1c values (%)",
+         subtitle = str_glue("Model Development Sample: ", nrow(dm1_cc_train), 
+                           " adults with diabetes"))
+```
+
+
+## Transform the Outcome?
+
+We want to try to identify a good transformation for the conditional distribution of the outcome, given the predictors, in an attempt to make the linear regression assumptions of linearity, Normality and constant variance more appropriate.
+
+### (partial) Ladder of Power Transformations 
+
+Transformation | $y^2$ | y | $\sqrt{y}$ | log(y) | $1/y$ | $1/y^2$
+-------------: | ---: | ---: | ---: | ---: | ---: | ---: 
+$\lambda$       | 2 | 1 | 0.5 | 0 | -1 | -2
+
+## Consider a log transformation?
+
+```{r}
+#| echo: true
+#| output-location: slide
+p1 <- ggplot(dm1_cc_train, aes(x = log(a1c))) +
+  geom_histogram(bins = 15, 
+                 fill = "royalblue", col = "white")
+
+p2 <- ggplot(dm1_cc_train, aes(sample = log(a1c))) + 
+  geom_qq(col = "royalblue") + geom_qq_line(col = "magenta") +
+  labs(y = "Observed log(a1c)", x = "Normal (0,1) quantiles") + 
+  theme(aspect.ratio = 1)
+  
+
+p3 <- ggplot(dm1_cc_train, aes(x = "", y = log(a1c))) +
+  geom_violin(fill = "royalblue", alpha = 0.1) + 
+  geom_boxplot(fill = "royalblue", width = 0.3, notch = TRUE,
+               outlier.color = "royalblue", outlier.size = 3) +
+  labs(x = "", y = "Natural log of Hemoglobin A1c") + coord_flip()
+
+p1 + p2 - p3 +
+  plot_layout(ncol = 1, height = c(3, 2)) + 
+  plot_annotation(title = "Natural Logarithm of Hemoglobin A1c",
+         subtitle = str_glue("Model Development Sample: ", nrow(dm1_cc_train), 
+                           " adults with diabetes"))
+```
+
+## Box-Cox to get started?
+
+```{r}
+#| echo: true
+mod_0 <- lm(a1c ~ a1c_old + age + income, 
+            data = dm1_cc_train)
+boxCox(mod_0) ## from car package
+```
+
+## Could Box-Cox be helpful?
+
+```{r}
+#| echo: true
+summary(powerTransform(mod_0)) ## also from car package
+```
+
+## Consider the inverse?
+
+```{r}
+#| echo: true
+#| output-location: slide
+p1 <- ggplot(dm1_cc_train, aes(x = (1/a1c))) +
+  geom_histogram(bins = 15, 
+                 fill = "forestgreen", col = "white")
+
+p2 <- ggplot(dm1_cc_train, aes(sample = (1/a1c))) + 
+  geom_qq(col = "forestgreen") + geom_qq_line(col = "tomato") +
+  labs(y = "Observed 1/a1c", x = "Normal (0,1) quantiles") + 
+  theme(aspect.ratio = 1)
+
+p3 <- ggplot(dm1_cc_train, aes(x = "", y = (1/a1c))) +
+  geom_violin(fill = "forestgreen", alpha = 0.1) + 
+  geom_boxplot(fill = "forestgreen", width = 0.3, notch = TRUE,
+               outlier.color = "forestgreen", outlier.size = 3) +
+  labs(x = "", y = "1/Hemoglobin A1c") + coord_flip()
+
+p1 + p2 - p3 +
+  plot_layout(ncol = 1, height = c(3, 2)) + 
+  plot_annotation(title = "Inverse of Hemoglobin A1c",
+         subtitle = str_glue("Model Development Sample: ", nrow(dm1_cc_train), 
+                           " adults with diabetes"))
+```
+
+## Correlation Matrix
+
+```{r}
+#| echo: true
+#| message: true
+temp <- dm1_cc_train |> 
+  mutate(inv_a1c = 1/a1c) |>
+  select(a1c_old, age, income, inv_a1c)
+
+temp |> correlate()    ## from corrr package (new!)
+```
+
+## Scatterplot Matrix 
+
+- I select the outcome last. Then, the bottom row will show the most important scatterplots, with the outcome on the Y axis, and each predictor, in turn on the X.
+- `ggpairs()` comes from the `GGally` package.
+
+```{r}
+#| echo: true
+#| output-location: slide
+temp <- dm1_cc_train |> 
+  mutate(inv_a1c = 1/a1c) |>
+  select(a1c_old, age, income, inv_a1c)
+
+ggpairs(temp, 
+    title = "Scatterplots: Model Development Sample",
+    lower = list(combo = wrap("facethist", bins = 10)))
+```
+
+## Three Regression Models We'll Fit
+
+- We continue to use the model training sample, and work with the (1/a1c) transformation.
+
+```{r}
+#| echo: true
+mod_1 <- lm((1/a1c) ~ a1c_old, data = dm1_cc_train)
+
+mod_2 <- lm((1/a1c) ~ a1c_old + age, data = dm1_cc_train)
+
+mod_3 <- lm((1/a1c) ~ a1c_old + age + income, 
+            data = dm1_cc_train)
+```
+
+# Assess fit of candidate models in training sample.
+
+## Tidied coefficients (`mod_1`)
+
+```{r}
+#| echo: true
+tidy_m1 <- tidy(mod_1, conf.int = TRUE, conf.level = 0.95)
+
+tidy_m1 |>
+  select(term, estimate, std.error, p.value, conf.low, conf.high) |>
+  kbl(digits = 4) |> kable_classic_2(font_size = 28, full_width = F)
+```
+
+$$
+\hat{A1c} = 0.2136 - 0.0103 \mbox{ A1c_old}
+$$
+
+- Code: `$$\hat{A1c} = 0.2136 - 0.0103 \mbox{ A1c_old}$$`
+
+## Summarize Fit Quality (mod_1)
+
+```{r}
+#| echo: true
+glance(mod_1) |> 
+  mutate(name = "mod_1") |>
+  select(name, r.squared, adj.r.squared, sigma, AIC, BIC, nobs, df) |>
+  kbl(digits = c(0, 3, 3, 3, 0, 0, 0, 0)) |> 
+  kable_minimal(font_size = 28, full_width = F)
+```
+
+- Adjusted $R^2$ = $1 - (1 - R^2) \times \frac{n-1}{n-p-1}$, where $p$ = number of predictors in the model, and $n$ = number of observations.
+    - Adjusted $R^2$ is no longer a percentage of anything, just an index. Higher values, though, still indicate stronger fits.
+
+## Summarize Fit Quality (mod_1)
+
+```{r}
+#| echo: true
+glance(mod_1) |> 
+  mutate(name = "mod_1") |>
+  select(name, r.squared, adj.r.squared, sigma, AIC, BIC, nobs, df) |>
+  kbl(digits = c(0, 3, 3, 4, 1, 1, 0, 0)) |> 
+  kable_minimal(font_size = 28, full_width = F)
+```
+
+- sigma = Residual Standard Error -> smaller values = better fit
+- AIC = Akaike vs. BIC = Bayesian Information Criterion
+    - Smaller values (more negative, if necessary) of AIC, BIC indicate relatively higher quality models.
+
+## Tidied coefficients (`mod_2`)
+
+```{r}
+#| echo: true
+tidy_m2 <- tidy(mod_2, conf.int = TRUE, conf.level = 0.95)
+
+tidy_m2 |>
+  select(term, estimate, std.error, p.value, conf.low, conf.high) |>
+  kbl(digits = 4) |> 
+  kable_classic_2(font_size = 28, full_width = F)
+```
+
+$$
+\hat{A1c} = 0.2031 - 0.0102 \mbox{ A1c_old} + 0.0002 \mbox{ Age}
+$$
+
+## Summarize Fit Quality (mod_2)
+
+```{r}
+#| echo: true
+glance(mod_2) |>
+  mutate(name = "mod_2") |>
+  select(name, r.squared, adj.r.squared, sigma, AIC, BIC, nobs, df) |>
+  kbl(digits = c(0, 3, 3, 4, 1, 1, 0, 0)) |> 
+  kable_minimal(font_size = 28, full_width = F)
+```
+
+Compare to model `mod_1`?
+
+```{r}
+glance(mod_1) |> 
+  mutate(name = "mod_1") |>
+  select(name, r.squared, adj.r.squared, sigma, AIC, BIC, nobs, df) |>
+  kbl(digits = c(0, 3, 3, 4, 1, 1, 0, 0)) |> 
+  kable_minimal(font_size = 28, full_width = F)
+```
+
+## Tidied coefficients (`mod_3`)
+
+```{r}
+#| echo: true
+tidy_m3 <- tidy(mod_3, conf.int = TRUE, conf.level = 0.95)
+tidy_m3 |>
+  select(term, estimate, std.error, p.value, conf.low, conf.high) |>
+  kbl(digits = 4) |> 
+  kable_classic_2(font_size = 28, full_width = F)
+```
+
+$$
+\hat{A1c} = 0.2032 - 0.0102 \mbox{ A1c_old} + 0.0002 \mbox{ Age} \\ - 0.0014 \mbox{(Inc 30-50)} + 0.0008 \mbox{(Inc<30)}
+$$
+
+## Compare fit quality?
+
+```{r}
+#| echo: true
+g1 <- glance(mod_1) |> mutate(name = "mod_1") 
+g2 <- glance(mod_2) |> mutate(name = "mod_2") 
+g3 <- glance(mod_3) |> mutate(name = "mod_3") 
+
+bind_rows(g1, g2, g3) |>
+  select(name, r2 = r.squared, adj_r2 = adj.r.squared, sigma, 
+         AIC, BIC, nobs, df) |>
+  kbl(digits = c(0, 3, 3, 5, 1, 1, 0, 0)) |> 
+  kable_minimal(font_size = 28, full_width = F)
+```
+
+## Which Model Looks Best?
+
+- By $R^2$, the largest model (`mod_3`) will always look best (raw $R^2$ is greedy)
+- Adjusted $R^2$ penalizes for lack of parsimony. Model 2 now looks best.
+- For $\sigma$, AIC and BIC, we want small (more negative) values.
+  - Model 2 looks best by $\sigma$, as well.
+  - Model 1 looks a little better than Model 2 by AIC and BIC.
+- Overall, what should we conclude about in-sample fit quality?
+
+# Check regression assumptions in training sample.
+
+## `augment` adds fits, residuals, etc.
+
+```{r}
+#| echo: true
+
+aug1 <- augment(mod_1, data = dm1_cc_train) |>
+  mutate(inv_a1c = 1/a1c) # add in our model's outcome
+```
+
+`aug1` includes all variables in `dm_cc_train` and also:
+
+- `inv_a1c` = 1/`a1c`, transformed outcome `mod_1` predicts
+- `.fitted` = fitted (predicted) values of 1/`a1c`
+- `.resid` = residual (observed - fitted outcome) values; larger residuals (positive or negative) mean poorer fit
+- `.std.resid` = standardized residuals (residuals scaled to SD = 1, remember residual mean is already 0)
+
+## What does `augment` give us?
+
+```{r}
+#| echo: true
+
+aug1 <- augment(mod_1, data = dm1_cc_train) |>
+  mutate(inv_a1c = 1/a1c) # add in our model's outcome
+```
+
+`aug1` also includes:
+
+- `.hat` statistic = measures *leverage* (larger values of `.hat` indicate unusual combinations of predictor values)
+- `.cooksd` = Cook's distance (or Cook's d), a measure of the subject's *influence* on the model (larger Cook's d values indicate that removing the point will materially change the model's coefficients)
+- plus `.sigma` = estimated $\sigma$ if this point is dropped from the model
+
+## `augment` results: last 2 subjects
+
+```{r}
+#| echo: true
+
+aug1 |> select(subject, a1c:income, inv_a1c) |> tail(2) |> 
+  kbl(dig = 3) |> kable_classic(font_size = 28, full_width = F)
+aug1 |> select(subject, .fitted:.cooksd) |> tail(2) |> 
+  kbl(dig = 3) |> kable_classic(font_size = 28, full_width = F)
+```
+
+## `augment` for models `mod_2` and `mod_3`
+
+We'll need the `augment` results for our other two models: `mod_2` and `mod_3`.
+
+```{r}
+#| echo: true
+
+aug2 <- augment(mod_2, data = dm1_cc_train) |>
+  mutate(inv_a1c = 1/a1c) # add in our model's outcome
+```
+
+```{r}
+#| echo: true
+
+aug3 <- augment(mod_3, data = dm1_cc_train) |>
+  mutate(inv_a1c = 1/a1c) # add in our model's outcome
+```
+
+## Checking Regression Assumptions
+
+Four key assumptions we need to think about:
+
+1. Linearity
+2. Constant Variance (Homoscedasticity)
+3. Normality
+4. Independence
+
+How do we assess 1, 2, and 3? Residual plots.
+
+There are five automated ones that we could obtain using `plot(mod_1)`...
+
+## Residuals vs. Fitted Values (`mod_1`)
+
+```{r}
+#| echo: true
+
+plot(mod_1, which = 1)
+```
+
+## Which points are highlighted?
+
+Note that the points labeled 102, 213 and 303 are the 102nd, 213th and 303rd rows in the `dm1_cc_train` data file, or, equivalently, in our `aug1` file.
+
+```{r}
+#| echo: true
+
+aug1 |> slice(c(102, 213, 303)) |> select(a1c:.resid, inv_a1c)
+```
+
+These are subjects `S-164`, `S-168`, and `S-105`, respectively.
+
+## Who is the plot identifying?
+
+Points with the largest residual (in absolute value) describe subjects `S-164`, `S-168`, and `S-105`, respectively. Does this make sense?
+
+```{r}
+#| echo: true
+
+aug1 |> select(subject, .resid) |> 
+  arrange(desc(abs(.resid))) |> head()
+```
+
+
+
+## Normal Q-Q: `mod_1`
+
+```{r}
+#| echo: true
+
+plot(mod_1, which = 2)
+```
+
+## How troublesome are these outliers?
+
+```{r}
+#| echo: true
+
+nrow(aug1)
+```
+
+```{r}
+#| echo: true
+
+aug1 |> select(subject, .std.resid) |> 
+  arrange(desc(abs(.std.resid)))
+```
+
+## Testing the largest outlier?
+
+```{r}
+#| echo: true
+
+outlierTest(mod_1)
+```
+
+A studentized residual is just another way to standardize the residuals that has some useful properties here. 
+
+- No indication that having a maximum absolute value of 3.65 in a sample of `r nrow(aug1)` studentized residuals is a major concern about the Normality assumption, given the Bonferroni p- value = 0.103.
+
+## Scale-Location plot (`mod_1`)
+
+```{r}
+#| echo: true
+
+plot(mod_1, which = 3)
+```
+
+## Cook's distance for influence (`mod_1`)
+
+```{r}
+#| echo: true
+
+plot(mod_1, which = 4)
+```
+
+## Residuals, Leverage and Influence
+
+```{r}
+#| echo: true
+
+plot(mod_1, which = 5)
+```
+
+## Residual Plots for `mod_1`
+
+```{r}
+#| echo: true
+
+par(mfrow = c(2,2)); plot(mod_1); par(mfrow = c(1,1))
+```
+
+## Residual Plots for `mod_2`
+
+```{r}
+#| echo: true
+par(mfrow = c(2,2)); plot(mod_2); par(mfrow = c(1,1))
+```
+
+## Residual Plots for `mod_3`
+
+```{r}
+#| echo: true
+
+par(mfrow = c(2,2)); plot(mod_3); par(mfrow = c(1,1))
+```
+
+## Is collinearity a serious issue here?
+
+```{r}
+#| echo: true
+
+vif(mod_3) ## using vif() from the car package
+```
+
+- Collinearity = correlated predictors
+    - Remember that the scatterplot matrix didn't suggest any strong correlations between our predictors.
+
+## Is collinearity a serious issue here?
+
+```{r}
+#| echo: true
+
+vif(mod_3)
+```
+
+- (generalized) Variance Inflation Factor tells us something about how the standard errors of our coefficients are inflated as a result of correlation between predictors.
+    - We tend to worry most about VIFs in this output that exceed 5.
+
+What would we do if we had strong collinearity? Drop a predictor?
+
+# Predict the test sample using these models 
+
+## `mod1` prediction errors in test sample
+
+The `augment` function in the `broom` package will create predictions within our new sample, but we want to back-transform these predictions so that they are on the original scale (`a1c`, rather than our transformed regression outcome `1/a1c`). Since the way to back out of the inverse transformation is to take the inverse again, we will take the inverse of the fitted values provided by `augment` and then calculate residuals on the original scale, as follows...
+
+## `mod_1` prediction errors in test sample
+
+```{r}
+#| echo: true
+
+test_m1 <- augment(mod_1, newdata = dm1_cc_test) |>
+  mutate(name = "mod_1", fit_a1c = 1 / .fitted,
+         res_a1c = a1c - fit_a1c) 
+```
+
+## What does `test_m1` now include?
+
+```{r}
+#| echo: true
+
+test_m1 |>
+  select(subject, a1c, fit_a1c, res_a1c, a1c_old, 
+         age, income) |> 
+  head() |>
+  kbl(digits = c(0, 1, 2, 2, 1, 0, 0)) |> kable_classic(font_size = 28)
+```
+
+## Gather test-sample prediction errors for models 2, 3
+
+```{r}
+#| echo: true
+
+test_m2 <- augment(mod_2, newdata = dm1_cc_test) |>
+  mutate(name = "mod_2", fit_a1c = 1 / .fitted,
+         res_a1c = a1c - fit_a1c) 
+
+test_m3 <- augment(mod_3, newdata = dm1_cc_test) |>
+  mutate(name = "mod_3", fit_a1c = 1 / .fitted,
+         res_a1c = a1c - fit_a1c) 
+```
+
+## Test sample results: all three models
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+test_comp <- bind_rows(test_m1, test_m2, test_m3) |>
+  arrange(subject, name)
+
+test_comp |> select(name, subject, a1c, fit_a1c, res_a1c, 
+                     a1c_old, age, income) |> 
+  slice(1:3, 7:9) |>
+  kbl(digits = c(0, 1, 2, 2, 1, 0, 0)) |> kable_classic(font_size = 28)
+```
+
+## Compare the test-sample errors?
+
+Given this tibble, including predictions and residuals from the three models on our test data, we can now:
+
+1. Visualize the prediction errors from each model (see Appendix).
+2. Summarize those errors across each model.
+3. Identify the "worst fitting" subject for each model in the test sample.
+
+
+## Comparing Model Predictions
+
+Calculate the mean absolute prediction error (MAPE), the square root of the mean squared prediction error (RMSPE) and the maximum  and median absolute error across the predictions made by each model. Let's add the validated $R^2$ values (squared correction of fit and observed), too.
+
+```{r}
+#| echo: true
+#| eval: false
+test_comp |>
+  group_by(name) |>
+  summarize(n = n(),
+            MAPE = mean(abs(res_a1c)), 
+            RMSPE = sqrt(mean(res_a1c^2)),
+            max_error = max(abs(res_a1c)),
+            median_APE = median(abs(res_a1c)),
+            valid_R2 = cor(a1c, fit_a1c)^2) |>
+  kbl(digits = c(0, 0, 4, 3, 2, 3, 3)) |> kable_classic(font_size = 28)
+```
+
+## Conclusions from Our Table
+
+```{r}
+test_comp |>
+  group_by(name) |>
+  summarize(n = n(),
+            MAPE = mean(abs(res_a1c)), 
+            RMSPE = sqrt(mean(res_a1c^2)),
+            max_error = max(abs(res_a1c)),
+            median_APE = median(abs(res_a1c)),
+            valid_R2 = cor(a1c, fit_a1c)^2) |>
+  kbl(digits = c(0, 0, 4, 3, 2, 3, 3)) |> kable_classic(font_size = 28)
+```
+
+- Model `mod_2` has the smallest MAPE (mean APE) and root mean squared prediction error (RMSPE) and the smallest maximum error, and the best (highest) validated $R^2$ value.
+- Model `mod_1` has the smallest median absolute prediction error.
+
+## Identify the largest errors
+
+Identify the subject(s) where that maximum prediction error was made by each model, and the observed and model-fitted values of `a1c` in each case.
+
+```{r}
+#| echo: true
+
+temp1 <- test_m1 |> 
+  filter(abs(res_a1c) == max(abs(res_a1c)))
+
+temp2 <- test_m2 |>
+  filter(abs(res_a1c) == max(abs(res_a1c)))
+
+temp3 <- test_m3 |>
+  filter(abs(res_a1c) == max(abs(res_a1c)))
+```
+
+## Identifying the Largest Errors
+
+```{r}
+#| echo: true
+
+bind_rows(temp1, temp2, temp3) |>
+  select(subject, name, a1c, fit_a1c, res_a1c)
+```
+
+## Line Plot of the Errors?
+
+Compare the errors that are made at each level of observed A1c?
+
+```{r}
+#| echo: true
+#| output-location: slide
+ggplot(test_comp, aes(x = a1c, y = res_a1c, group = name)) +
+  geom_line(aes(col = name)) + 
+  geom_point(aes(col = name)) +
+  geom_text_repel(data = test_comp |> 
+               filter(subject == "S-002"), 
+               aes(label = subject))
+```
+
+## What if we ignored S-002?
+
+```{r}
+#| echo: true
+
+test_comp |> filter(subject != "S-002") |>
+  group_by(name) |>
+  summarize(n = n(), MAPE = mean(abs(res_a1c)), 
+            RMSPE = sqrt(mean(res_a1c^2)),
+            max_error = max(abs(res_a1c)), 
+            median_APE = median(abs(res_a1c)),
+            valid_R2 = cor(a1c, fit_a1c)^2) |>
+  kbl(digits = c(0, 0, 4, 3, 2, 3, 3)) |> kable_classic(font_size = 28)
+```
+
+Excluding subject S-002, `mod_2` still wins four of five summaries.
+
+## "Complete Case" Conclusions? {.smaller}
+
+1. In-sample model predictions are about equally accurate for each of the three models. `mod2` looks better in terms of adjusted $R^2$ and AIC, but `mod1` is better on BIC. There's really not much to choose from there.
+2. Residual plots look similarly reasonable for linearity, Normality and constant variance in all three models. 
+3. No substantial signs of collinearity.
+4. In our testing sample, `mod_2` has the smallest MAPE (mean APE), RMSPE and maximum error, and the best validated $R^2$, whild `mod1` has the smallest median absolute prediction error. All three models are pretty comparable. Excluding a bad miss on one subject in the test sample doesn't change these conclusions. 
+
+So, what should our "most useful" model be?
+
+## 431 strategy: "most useful" model?
+
+Repeating what I discussed at the start of class...
+
+1. Split the data into a development (model training) sample of about 70-80% of the observations, and a holdout (model test) sample, containing the remaining observations.
+2. Develop candidate models using the development sample.
+3. Assess the quality of fit for candidate models within the development sample.
+
+## 431 strategy: "most useful" model?
+
+4. Check adherence to regression assumptions in the development sample.
+5. When you have candidates, assess them based on the accuracy of the predictions they make for the data held out (and thus not used in building the models.) 
+6. Select a "final" model for use based on the evidence in steps 3, 4 and especially 5.
+
+## Session Information
+
+```{r}
+#| echo: true
+session_info()
+```
+
+# Appendix
+
+## Other potential models?
+
+Three predictor candidates, so we could have used...
+
+- `a1c_old` alone (our `mod_1`)
+- `age` alone
+- `income` alone
+- `a1c_old` and `age` (our `mod_2`)
+- `a1c_old` and `income`
+- `age` and `income`
+- `a1c_old`, `age` and `income` (our `mod_3`)
+
+## Would Stepwise Regression Help?
+
+We'll try backwards elimination, where we let R's `step` function start with the full model (`mod_3`) including all three predictors, and then remove the predictor whose removal causes the largest drop in AIC, until we reach a point where eliminating another predictor will not improve the AIC.
+
+- The smaller (more negative, here) the AIC, the better.
+
+### Stepwise Regression on `mod_3`
+
+```{r}
+#| echo: true
+#| output-location: slide
+step(mod_3)
+```
+
+
+## An Important Point
+
+Stepwise regression lands on our `mod_1`, as it turns out.
+
+- There is a **huge** amount of evidence that variable selection causes severe problems in estimation and inference.
+- Stepwise regression is an especially bad choice.
+- Disappointingly, there really isn't a great choice. The task itself just isn't one we can do well in a uniform way across all of the different types of regression models we'll build.
+
+More on this in 432.
+
+## `ggplot2` for residual plots?
+
+1. Residuals vs. Fitted Values plots are straightforward, with the use of the `augment` function from the `broom` package.
+    - We can also plot residuals against individual predictors, if we like.
+2. Similarly, plots to assess the Normality of the residuals, like a Normal Q-Q plot, are straightforward, and can use either raw residuals or standardized residuals.
+
+## `ggplot2` for residual plots?
+
+3. The scale-location plot of the square root of the standardized residuals vs. the fitted values is also pretty straightforward.
+4. The `augment` function can be used to obtain Cook's distance, standardized residuals and leverage values, so we can mimic both the index plot (of Cook's distance) as well as the residuals vs. leverage plot with Cook's distance contours, if we like.
+
+Demonstrations on the next few slides.
+
+## Residuals vs. Fitted Values: `ggplot2`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(aug1, aes(x = .fitted, y = .resid)) +
+  geom_point() + 
+  geom_point(data = aug1 |> 
+               slice_max(abs(.resid), n = 5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug1 |> 
+               slice_max(abs(.resid), n = 5),
+               aes(label = subject), col = "red") +
+  geom_abline(intercept = 0, slope = 0, lty = "dashed") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Residuals vs. Fitted Values from mod_1",
+       caption = "5 largest |residuals| highlighted in red.",
+       x = "Fitted Value of (1/a1c)", y = "Residual") +
+  theme(aspect.ratio = 1)
+```
+
+## Standardized Residuals: `ggplot2`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(aug1, aes(sample = .std.resid)) +
+  geom_qq() + 
+  geom_qq_line(col = "red") +
+  labs(title = "Normal Q-Q plot",
+       y = "Standardized Residual from mod_1", 
+       x = "Standard Normal Quantiles") +
+  theme(aspect.ratio = 1)
+
+p2 <- ggplot(aug1, aes(y = .std.resid, x = "")) +
+  geom_violin(fill = "ivory") +
+  geom_boxplot(width = 0.3) +
+  labs(title = "Box and Violin Plots",
+       y = "Standardized Residual from mod_1",
+       x = "mod_1")
+
+p1 + p2 + 
+  plot_layout(widths = c(2, 1)) +
+  plot_annotation(
+    title = "Normality of Standardized Residuals from mod_1",
+    caption = str_glue("n = ", nrow(aug1 |> select(.std.resid)),
+                     " residual values are plotted here."))
+```
+
+
+## Scale-Location Plot via `ggplot2`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(aug1, aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point() + 
+  geom_point(data = aug1 |> 
+               slice_max(sqrt(abs(.std.resid)), n = 3),
+             col = "red", size = 1) +
+  geom_text_repel(data = aug1 |> 
+               slice_max(sqrt(abs(.std.resid)), n = 3),
+               aes(label = subject), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Scale-Location Plot for mod_1",
+       caption = "3 largest |Standardized Residual| in red.",
+       x = "Fitted Value of (1/a1c)", 
+       y = "Square Root of |Standardized Residual|") +
+  theme(aspect.ratio = 1)
+```
+
+
+## Cook's Distance Index Plot via `ggplot2`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+aug1_extra <- aug1 |> 
+  mutate(obsnum = 1:nrow(aug1 |> select(.cooksd)))
+
+ggplot(aug1_extra, aes(x = obsnum, y = .cooksd)) + 
+  geom_point() + 
+  geom_text_repel(data = aug1_extra |> 
+               slice_max(.cooksd, n = 3),
+               aes(label = subject)) +
+  labs(x = "Observation Number",
+       y = "Cook's Distance")
+```
+
+## Residuals vs. Leverage Plot via `ggplot2`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(aug1, aes(x = .hat, y = .std.resid)) +
+  geom_point() + 
+  geom_point(data = aug1 |> filter(.cooksd >= 0.5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug1 |> filter(.cooksd >= 0.5),
+               aes(label = subject), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  geom_vline(aes(xintercept = 3*mean(.hat)), lty = "dashed") +
+  labs(title = "Residuals vs. Leverage from mod_1",
+       caption = "Red points indicate Cook's d at least 0.5",
+       x = "Leverage", y = "Standardized Residual") +
+  theme(aspect.ratio = 1)
+```
+
+## Some Notes on the Residuals vs. Leverage Plot
+
+In this `ggplot()` approach,
+
+- Points with Cook's d >= 0.5 would be highlighted and in red, if there were any.
+- Points right of the dashed line have high leverage, by one standard.
+- Points with more than 3 times the average leverage are identified as highly leveraged by some people, hence my dashed vertical line.
+
+## `ggplot2` Residual Plots: `mod_1`
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| fig.height: 6
+
+p1 <- ggplot(aug1, aes(x = .fitted, y = .resid)) +
+  geom_point() + 
+  geom_point(data = aug1 |> 
+               slice_max(abs(.resid), n = 3),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug1 |> 
+               slice_max(abs(.resid), n = 3),
+               aes(label = subject), col = "red") +
+  geom_abline(intercept = 0, slope = 0, lty = "dashed") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Residuals vs. Fitted",
+       x = "Fitted Value of (1/a1c)", y = "Residual") 
+
+p2 <- ggplot(aug1, aes(sample = .std.resid)) +
+  geom_qq() + 
+  geom_qq_line(col = "red") +
+  labs(title = "Normal Q-Q plot",
+       y = "Standardized Residual", 
+       x = "Standard Normal Quantiles") 
+
+p3 <- ggplot(aug1, aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point() + 
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Scale-Location Plot",
+       x = "Fitted Value of (1/a1c)", 
+       y = "|Std. Residual|^(1/2)") 
+
+p4 <- ggplot(aug1, aes(x = .hat, y = .std.resid)) +
+  geom_point() + 
+  geom_point(data = aug1 |> filter(.cooksd >= 0.5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug1 |> filter(.cooksd >= 0.5),
+               aes(label = subject), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  geom_vline(aes(xintercept = 3*mean(.hat)), lty = "dashed") +
+  labs(title = "Residuals vs. Leverage",
+       x = "Leverage", y = "Standardized Residual") 
+
+(p1 + p2) / (p3 + p4) +
+  plot_annotation(title = "Assessing Residuals for mod_1",
+                  caption = "If applicable, Cook's d >= 0.5 shown in red in bottom right plot.")
+```
+
+## `ggplot2` Residual Plots: `mod_2`
+
+```{r}
+#| fig.height: 6
+p1 <- ggplot(aug2, aes(x = .fitted, y = .resid)) +
+  geom_point() + 
+  geom_point(data = aug2 |> 
+               slice_max(abs(.resid), n = 3),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug2 |> 
+               slice_max(abs(.resid), n = 3),
+               aes(label = subject), col = "red") +
+  geom_abline(intercept = 0, slope = 0, lty = "dashed") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Residuals vs. Fitted",
+       x = "Fitted Value of (1/a1c)", y = "Residual") 
+
+p2 <- ggplot(aug2, aes(sample = .std.resid)) +
+  geom_qq() + 
+  geom_qq_line(col = "red") +
+  labs(title = "Normal Q-Q plot",
+       y = "Standardized Residual", 
+       x = "Standard Normal Quantiles") 
+
+p3 <- ggplot(aug2, aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point() + 
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Scale-Location Plot",
+       x = "Fitted Value of (1/a1c)", 
+       y = "|Std. Residual|^(1/2)") 
+
+p4 <- ggplot(aug2, aes(x = .hat, y = .std.resid)) +
+  geom_point() + 
+  geom_point(data = aug2 |> filter(.cooksd >= 0.5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug2 |> filter(.cooksd >= 0.5),
+               aes(label = subject), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  geom_vline(aes(xintercept = 3*mean(.hat)), lty = "dashed") +
+  labs(title = "Residuals vs. Leverage",
+       x = "Leverage", y = "Standardized Residual") 
+
+(p1 + p2) / (p3 + p4) +
+  plot_annotation(title = "Assessing Residuals for mod_2",
+                  caption = "If applicable, Cook's d >= 0.5 shown in red in bottom right plot.")
+```
+
+## `ggplot2` Residual Plots: `mod_3`
+
+```{r}
+#| fig.height: 6
+p1 <- ggplot(aug3, aes(x = .fitted, y = .resid)) +
+  geom_point() + 
+  geom_point(data = aug3 |> 
+               slice_max(abs(.resid), n = 3),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug3 |> 
+               slice_max(abs(.resid), n = 3),
+               aes(label = subject), col = "red") +
+  geom_abline(intercept = 0, slope = 0, lty = "dashed") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Residuals vs. Fitted",
+       x = "Fitted Value of (1/a1c)", y = "Residual") 
+
+p2 <- ggplot(aug3, aes(sample = .std.resid)) +
+  geom_qq() + 
+  geom_qq_line(col = "red") +
+  labs(title = "Normal Q-Q plot",
+       y = "Standardized Residual", 
+       x = "Standard Normal Quantiles") 
+
+p3 <- ggplot(aug3, aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point() + 
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Scale-Location Plot",
+       x = "Fitted Value of (1/a1c)", 
+       y = "|Std. Residual|^(1/2)") 
+
+p4 <- ggplot(aug3, aes(x = .hat, y = .std.resid)) +
+  geom_point() + 
+  geom_point(data = aug3 |> filter(.cooksd >= 0.5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug3 |> filter(.cooksd >= 0.5),
+               aes(label = subject), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  geom_vline(aes(xintercept = 3*mean(.hat)), lty = "dashed") +
+  labs(title = "Residuals vs. Leverage",
+       x = "Leverage", y = "Standardized Residual") 
+
+(p1 + p2) / (p3 + p4) +
+  plot_annotation(title = "Assessing Residuals for mod_3",
+                  caption = "If applicable, Cook's d >= 0.5 shown in red in bottom right plot.")
+```
+
+## Visualize the prediction errors 
+
+```{r}
+#| echo: true
+
+ggplot(test_comp, aes(x = res_a1c, fill = name)) +
+  geom_histogram(bins = 20, col = "white") + 
+  facet_grid (name ~ .) + guides(fill = "none")
+```
+
+## Alternate Plot
+
+```{r}
+#| echo: true
+
+ggplot(test_comp, aes(x = name, y = res_a1c, fill = name)) +
+  geom_violin(alpha = 0.3) + 
+  geom_boxplot(width = 0.3, outlier.shape = NA) +
+  geom_jitter(height = 0, width = 0.1) +
+  guides(fill = "none")
+```
+
+## Test-Sample Prediction Errors
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(test_comp, aes(x = res_a1c, fill = name)) +
+  geom_histogram(bins = 20, col = "white") + 
+  labs(x = "Prediction Errors on A1c scale", y = "") +
+  facet_grid (name ~ .) + guides(fill = "none")
+
+p2 <- ggplot(test_comp, aes(x = factor(name), y = res_a1c, 
+                            fill = name)) +
+  geom_violin(alpha = 0.3) + 
+  geom_boxplot(width = 0.3, notch = TRUE) +
+  scale_x_discrete(position = "top",
+                   limits = 
+                     rev(levels(factor(test_comp$name)))) +
+  guides(fill = "none") + 
+  labs(x = "", y = "Prediction Errors on A1c scale") +
+  coord_flip()
+
+p1 + p2 + plot_layout(ncol = 2)
+```
