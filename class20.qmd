@@ -1,0 +1,1041 @@
+---
+title: "431 Class 20"
+author: Thomas E. Love, Ph.D.
+date: "2023-11-09"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 20 | 2023-11-09 | <https://thomaselove.github.io/431-2023/>"
+---
+
+## Today's Agenda
+
+Some NHANES National Youth Fitness Survey (2012) data
+
+1. Exploration and Initial Data Summaries
+    - Dealing with Missingness then Partitioning
+2. How might we transform our outcome?
+3. Building Candidate Prediction Models 
+4. Checking Regression Assumptions
+5. Assessing the candidates, in training and test samples
+
+## Today's Packages
+
+```{r}
+#| echo: true
+#| message: false
+
+library(janitor)       # clean_names(), tabyl(), etc. 
+library(naniar)        # identifying/dealing with NA
+library(patchwork)     # combining ggplot2 plots
+library(broom)         # for tidy(), glance(), augment()
+library(car)           # for boxCox
+library(corrr)         # for correlation matrix
+library(GGally)        # for scatterplot matrix
+library(ggrepel)       # help with residual plots
+library(gt)            # formatting tables
+library(gtsummary)     # for tbl_regression() 
+library(mosaic)        # favstats, df_stats & inspect
+library(sessioninfo)   # for session_info()
+library(simputation)   # for single imputation
+library(tidyverse)
+
+theme_set(theme_bw())
+options(tidyverse.quiet = TRUE)
+options(dplyr.summarise.inform = FALSE)
+```
+
+## NHANES National Youth Fitness Survey (from 2012)
+
+- See [Course Notes Chapter 10](https://thomaselove.github.io/431-notes/10-nnyfs_foundations.html) for variable descriptions.
+- Data in `nnyfs.Rds` file from [our 431-data page](https://github.com/THOMASELOVE/431-data).
+
+```{r}
+#| echo: true
+nnyfs_full <- read_rds("c20/data/nnyfs.Rds")
+nnyfs1 <- nnyfs_full |> 
+  rename(triceps = triceps_skinfold, age = age_child, 
+         health = phys_health) |>
+  mutate(asthma = fct_recode(factor(asthma_ever), 
+                                  "Asthma" = "History of Asthma", 
+                                  "Never" = "Never Had Asthma")) |>
+  select(triceps, waist, age, asthma, health, SEQN)
+dim(nnyfs1)
+```
+
+## The `nnyfs1` data
+
+```{r}
+nnyfs1
+```
+
+
+## Which variables will we study today?
+
+Variable | Description
+:-------: | :----------------------------------------------
+`triceps` | Triceps skinfold (mm), our **outcome**
+`waist` | Waist circumference (cm)
+`age` | Age in years at screening (3 to 15)
+`asthma` | Ever told you have asthma?
+`health` | Self-reported Health (Excellent to Poor)
+`SEQN` | just a subject identifying code
+
+## Missingness?
+
+```{r}
+#| echo: true
+miss_var_summary(nnyfs1)
+miss_case_table(nnyfs1)
+```
+
+How often are we missing `waist` when we have `triceps`?
+
+## Little's MCAR test
+
+Could we assume MCAR for these missing values?
+
+```{r}
+#| echo: true
+mcar_test(nnyfs1) ## from naniar
+```
+
+Null hypothesis here is that the missingness is MCAR. Conclusions?
+
+- For more, see the [MCAR test page](https://naniar.njtierney.com/reference/mcar_test.html) at the `naniar` package's [website](https://naniar.njtierney.com/).
+
+## Dealing with Missingness
+
+I don't want to do single imputation on the outcome, and it seems we can still assume MCAR, so we'll filter to complete cases on our outcome, and then impute the one remaining missing `waist` value.
+
+```{r}
+#| echo: true
+nnyfs <- nnyfs1 |> 
+  filter(complete.cases(triceps)) |> # don't want to impute outcome
+  impute_rlm(waist ~ age + triceps + health + asthma)
+
+miss_case_table(nnyfs)
+```
+
+## `nnyfs` numerical summaries
+
+Quantitative variables...
+
+```{r}
+#| echo: true
+df_stats(~ triceps + waist + age, data = nnyfs) |> 
+    gt() |>  fmt_number(decimals = 2, columns = c(mean, sd)) |>
+    tab_options(table.font.size = 24)
+```
+
+## `nnyfs` numerical summaries
+
+Categorical Variables...
+
+```{r}
+#| echo: true
+nnyfs |> tabyl(asthma, health) |> 
+  adorn_totals(where = c("row", "col"))
+```
+
+## Collapsing to 3 `health` Levels
+
+- Let's collapse together Good, Fair and Poor so we have a reasonable sample size (> 50 for today) in each cell.
+
+```{r}
+#| echo: true
+nnyfs <- nnyfs |>
+  mutate(health = fct_collapse(health,
+                     Other = c("3_Good", "4_Fair", "5_Poor"),
+                     Excellent = "1_Excellent",
+                     VeryGood = "2_VeryGood"),
+         health = fct_relevel(health, "Excellent", "VeryGood"))
+
+nnyfs |> tabyl(asthma, health) |> 
+  adorn_totals(where = c("row", "col"))
+```
+
+## Resulting `nnyfs` set
+
+```{r}
+#| echo: true
+inspect(nnyfs)  ## from mosaic package
+```
+
+## Partitioning the `nnyfs` data
+
+Let's put 1000 `nnyfs` samples (66.8%) in the training set, leaving 497 for the test set.
+
+```{r}
+#| echo: true
+set.seed(431020)
+nnyfs_train <- slice_sample(nnyfs, n = 1000, replace = FALSE)
+nnyfs_test <- anti_join(nnyfs, nnyfs_train, by = "SEQN")
+
+nrow(nnyfs_train); nrow(nnyfs_test)
+```
+
+## DTDP: triceps skinfold in mm
+
+```{r}
+#| echo: true
+#| output-location: slide
+p1 <- ggplot(nnyfs_train, aes(x = triceps)) +
+  geom_histogram(bins = 20, fill = "steelblue", col = "white")
+
+p2 <- ggplot(nnyfs_train, aes(sample = triceps)) + 
+  geom_qq(col = "steelblue") + geom_qq_line(col = "tomato") +
+  labs(y = "Observed triceps", x = "Normal (0,1) quantiles") + 
+  theme(aspect.ratio = 1)
+
+p3 <- ggplot(nnyfs_train, aes(x = "", y = triceps)) +
+  geom_violin(fill = "steelblue", alpha = 0.1) + 
+  geom_boxplot(fill = "steelblue", width = 0.3, notch = TRUE,
+               outlier.color = "steelblue", outlier.size = 3) +
+  labs(x = "") + coord_flip()
+
+p1 + p2 - p3 +
+  plot_layout(ncol = 1, height = c(3, 2)) + 
+  plot_annotation(title = "Triceps Skinfold (mm)",
+         subtitle = str_glue("Model Development Sample: ", nrow(nnyfs_train), 
+                           " children in NNYFS 2012"))
+```
+
+## Consider transforming the outcome?
+
+```{r}
+#| echo: true
+mod_0 <- lm(triceps ~ waist + age + asthma + health, data = nnyfs)
+boxCox(mod_0)
+```
+
+## Power Transformation suggestions
+
+```{r}
+#| echo: true
+
+summary(powerTransform(mod_0))
+```
+
+I guess we could use the cube root transformation: $\mbox{triceps}^{1/3}$ but I'll go with $\sqrt{\mbox{triceps}}$ as a starting point, because it's somehow less daunting.
+
+## DTDP: $\sqrt{\mbox{triceps}}$
+
+```{r}
+#| echo: true
+#| output-location: slide
+p1 <- ggplot(nnyfs_train, aes(x = sqrt(triceps))) +
+  geom_histogram(bins = 20, fill = "slateblue", col = "white")
+
+p2 <- ggplot(nnyfs_train, aes(sample = sqrt(triceps))) + 
+  geom_qq(col = "slateblue") + geom_qq_line(col = "violetred") +
+  labs(y = "Observed sqrt(triceps)", x = "Normal (0,1) quantiles") + 
+  theme(aspect.ratio = 1)
+
+p3 <- ggplot(nnyfs_train, aes(x = "", y = sqrt(triceps))) +
+  geom_violin(fill = "slateblue", alpha = 0.1) + 
+  geom_boxplot(fill = "slateblue", width = 0.3, notch = TRUE,
+               outlier.color = "slateblue", outlier.size = 3) +
+  labs(x = "") + coord_flip()
+
+p1 + p2 - p3 +
+  plot_layout(ncol = 1, height = c(3, 2)) + 
+  plot_annotation(title = "Square Root of Triceps Skinfold (mm)",
+         subtitle = str_glue("Model Development Sample: ", nrow(nnyfs_train), 
+                           " children in NNYFS 2012"))
+```
+
+
+## DTDP: Is $\mbox{triceps}^{1/3}$ much better?
+
+```{r}
+#| echo: true
+#| output-location: slide
+p1 <- ggplot(nnyfs_train, aes(x = triceps^(1/3))) +
+  geom_histogram(bins = 20, fill = "royalblue", col = "white")
+
+p2 <- ggplot(nnyfs_train, aes(sample = triceps^(1/3))) + 
+  geom_qq(col = "royalblue") + geom_qq_line(col = "magenta") +
+  labs(y = "Observed sqrt(triceps)", x = "Normal (0,1) quantiles") + 
+  theme(aspect.ratio = 1)
+
+p3 <- ggplot(nnyfs_train, aes(x = "", y = triceps^(1/3))) +
+  geom_violin(fill = "royalblue", alpha = 0.1) + 
+  geom_boxplot(fill = "royalblue", width = 0.3, notch = TRUE,
+               outlier.color = "royalblue", outlier.size = 3) +
+  labs(x = "") + coord_flip()
+
+p1 + p2 - p3 +
+  plot_layout(ncol = 1, height = c(3, 2)) + 
+  plot_annotation(title = "Cube Root of Triceps Skinfold (mm)",
+         subtitle = str_glue("Model Development Sample: ", nrow(nnyfs_train), 
+                           " children in NNYFS 2012"))
+```
+
+# Identify and Fit Candidate Models in training sample
+
+## Scatterplot Matrix 
+
+- Again, I select the outcome ($\sqrt{\mbox{triceps}}$) last, so the bottom row shows the most important scatterplots.
+
+```{r}
+#| echo: true
+#| output-location: slide
+temp <- nnyfs_train |> 
+  mutate(sqrt_tri = sqrt(triceps)) |>
+  select(waist, age, asthma, health, sqrt_tri)
+
+ggpairs(temp, 
+    title = "Scatterplots: Model Development Sample",
+    lower = list(combo = wrap("facethist", bins = 20)))
+```
+
+## What about the categories?
+
+What does our outcome look like by `asthma` category?
+
+```{r}
+#| echo: true
+favstats(sqrt_tri ~ asthma, data = temp) |> gt() |>
+    fmt_number(decimals = 2, columns = -c(n, missing)) |>
+    tab_options(table.font.size = 24)
+```
+
+## What about the categories?
+
+How about the distribution by `health` category?
+
+```{r}
+#| echo: true
+favstats(sqrt_tri ~ health, data = temp) |> gt() |>
+    fmt_number(decimals = 2, columns = -c(n, missing)) |>
+    tab_options(table.font.size = 24)
+```
+
+## Correlation Matrix?
+
+```{r}
+#| echo: true
+
+temp <- nnyfs_train |> 
+  mutate(sqrt_tri = sqrt(triceps)) |>
+  select(waist, age, asthma, health, sqrt_tri)
+
+temp |> correlate() |>  
+  gt() |> fmt_number(decimals = 3) |> 
+  tab_options(table.font.size = 24)
+```
+
+Any signs of meaningful collinearity here?
+
+
+
+
+## Checking Variance Inflation Factors
+
+```{r}
+#| echo: true
+vif(lm(triceps ~ waist + age + asthma + health, 
+       data = nnyfs))
+```
+
+Any major concerns here? What are we looking for?
+
+## Use `step` to pick a candidate?
+
+We'll use backwards selection, starting with a model including all four predictors (the "kitchen sink" model).
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+step(lm(sqrt(triceps) ~ waist + age + asthma + health, 
+        data = nnyfs_train))
+```
+
+## An Important Point
+
+Stepwise regression lands on our `mod_1`, as it turns out.
+
+- There is a **huge** amount of evidence that variable selection causes severe problems in estimation and inference.
+- Stepwise regression is an especially bad choice.
+- Disappointingly, there really isn't a great choice. The task itself just isn't one we can do well in a uniform way across all of the different types of regression models we'll build.
+
+More on this in 432.
+
+## Which models will we fit?
+
+Model | `waist` | `age` | `asthma` | `health`
+:----: | :----: | :----: | :----: | :----:
+`modA` | Yes | No | No | No
+`modB` | Yes | Yes | No | No
+`modC` | Yes | Yes | No | Yes
+`modD` | Yes | Yes | Yes | Yes
+
+- Stepwise backwards selection via AIC suggested `modC`.
+- "Kitchen Sink" is `modD`
+- Today, each model is a subset of the next model.
+
+## Fitting `modA` through `modD`
+
+Using the training sample...
+
+```{r}
+#| echo: true
+
+modA <- lm(sqrt(triceps) ~ waist, 
+           data = nnyfs_train)
+modB <- lm(sqrt(triceps) ~ waist + age, 
+           data = nnyfs_train)
+modC <- lm(sqrt(triceps) ~ waist + age + health, 
+           data = nnyfs_train)
+modD <- lm(sqrt(triceps) ~ waist + age + asthma + health, 
+           data = nnyfs_train)
+```
+
+## Scatterplot with `modA`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(data = nnyfs_train, aes(x = waist, y = sqrt(triceps))) +
+  geom_point(col = "slateblue") +
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, col = "red") +
+  labs(x = "Waist Circumference (cm)", 
+       y = "Square Root of Triceps Skinfold (mm)", 
+       title = "modA and our data", 
+       subtitle = "nnyfs Training Sample (n = 1000)", 
+       caption = "R-squared = 0.623") + 
+  theme(aspect.ratio = 1)
+```
+
+## `modA`: `waist` only
+
+```{r}
+#| echo: true
+glance(modA) |> mutate(name = "modA") |>
+  select(name, r.squared, adj.r.squared, sigma, AIC, BIC, nobs, df) |>
+  gt() |> fmt_number(decimals = 3, columns = c(2:4)) |>
+    fmt_number(decimals = 1, columns = c(5:6)) |>
+    tab_options(table.font.size = 24)
+```
+
+```{r}
+#| echo: true
+tidy(modA, conf.int = TRUE, conf.level = 0.90) |>
+  select(term, estimate, std.error, p.value, conf.low, conf.high) |>
+  gt() |> fmt_number(decimals = 3) |> tab_options(table.font.size = 24)
+```
+
+## `modB`: `waist` and `age`
+
+```{r}
+#| echo: true
+glance(modB) |> mutate(name = "modB") |>
+  select(name, r.squared, adj.r.squared, sigma, AIC, BIC, nobs, df) |>
+  gt() |> fmt_number(decimals = 3, columns = c(2:4)) |>
+    fmt_number(decimals = 1, columns = c(5:6)) |>
+    tab_options(table.font.size = 24)
+```
+
+```{r}
+#| echo: true
+tidy(modB, conf.int = TRUE, conf.level = 0.90) |>
+  select(term, estimate, std.error, p.value, conf.low, conf.high) |>
+  gt() |> fmt_number(decimals = 3) |> tab_options(table.font.size = 24)
+```
+
+## `modC`: `waist`, `age` and `health`
+
+```{r}
+glance(modC) |> mutate(name = "modC") |>
+  select(name, r.squared, adj.r.squared, sigma, AIC, BIC, nobs, df) |>
+  gt() |> fmt_number(decimals = 3, columns = c(2:4)) |>
+    fmt_number(decimals = 1, columns = c(5:6)) |>
+    tab_options(table.font.size = 24)
+```
+
+```{r}
+tidy(modC, conf.int = TRUE, conf.level = 0.90) |>
+  select(term, estimate, std.error, p.value, conf.low, conf.high) |>
+  gt() |> fmt_number(decimals = 3) |> tab_options(table.font.size = 24)
+```
+
+## `modD`: `waist`, `age`, `asthma` & `health`
+
+```{r}
+glance(modD) |> mutate(name = "modD") |>
+  select(name, r.squared, adj.r.squared, sigma, AIC, BIC, nobs, df) |>
+  gt() |> fmt_number(decimals = 3, columns = c(2:4)) |>
+    fmt_number(decimals = 1, columns = c(5:6)) |>
+    tab_options(table.font.size = 24)
+```
+
+```{r}
+tidy(modD, conf.int = TRUE, conf.level = 0.90) |>
+  select(term, estimate, std.error, p.value, conf.low, conf.high) |>
+  gt() |> fmt_number(decimals = 3) |> tab_options(table.font.size = 24)
+```
+
+## The Four Models
+
+Four regression equations we've fit to the training sample...
+
+- `modA`: $\sqrt{\mbox{triceps}}$ = 0.672 + 0.044 waist
+- `modB`: $\sqrt{\mbox{triceps}}$ = 0.504 + 0.057 waist - 0.076 age
+- `modC`: $\sqrt{\mbox{triceps}}$ = 0.465 + 0.057 waist - 0.075 age + 0.123 (health = Very Good) + 0.006 (health = Other)
+- `modD`: $\sqrt{\mbox{triceps}}$ = 0.477 + 0.057 waist - 0.075 age - 0.012 (asthma = Never) + 0.123 (health = Very Good) + 0.004 (health = Other)
+
+
+
+## Combining the `glance()` results
+
+```{r}
+#| echo: true
+
+bind_rows(glance(modA) |> mutate(name = "modA"),
+          glance(modB) |> mutate(name = "modB"),
+          glance(modC) |> mutate(name = "modC"),
+          glance(modD) |> mutate(name = "modD")) |>
+  select(name, r.squared, adj.r.squared, sigma, AIC, BIC, nobs, df) |>
+  gt() |> fmt_number(decimals = 5, columns = 2) |>
+    fmt_number(decimals = 4, columns = c(3:4)) |>
+    fmt_number(decimals = 0, columns = c(5:6)) |>
+    tab_options(table.font.size = 24)
+```
+
+# Regression Assumptions & Residual Plots via `ggplot2`
+
+## Checking Regression Assumptions
+
+Four key assumptions we need to think about:
+
+1. Linearity
+2. Constant Variance (Homoscedasticity)
+3. Normality
+4. Independence
+
+How do we assess 1, 2, and 3? Residual plots.
+
+## Augmenting our training data
+
+```{r}
+#| echo: true
+aug_A <- augment(modA, data = nnyfs_train) |>
+  mutate(sqrt_tri = sqrt(triceps)) # add in our model's outcome
+
+aug_B <- augment(modB, data = nnyfs_train) |>
+  mutate(sqrt_tri = sqrt(triceps)) # add in our model's outcome
+
+aug_C <- augment(modC, data = nnyfs_train) |>
+  mutate(sqrt_tri = sqrt(triceps)) # add in our model's outcome
+
+aug_D <- augment(modD, data = nnyfs_train) |>
+  mutate(sqrt_tri = sqrt(triceps)) # add in our model's outcome
+```
+
+## Residuals vs. Fitted Values: `ggplot2`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(aug_A, aes(x = .fitted, y = .resid)) +
+  geom_point() + 
+  geom_point(data = aug_A |> 
+               slice_max(abs(.resid), n = 5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug_A |> 
+               slice_max(abs(.resid), n = 5),
+               aes(label = SEQN), col = "red") +
+  geom_abline(intercept = 0, slope = 0, lty = "dashed") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Residuals vs. Fitted Values from modA",
+       caption = "5 largest |residuals| highlighted in red.",
+       x = "Fitted Value of sqrt(triceps)", y = "Residual") +
+  theme(aspect.ratio = 1)
+```
+
+## Standardized Residuals: `ggplot2`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(aug_A, aes(sample = .std.resid)) +
+  geom_qq() + 
+  geom_qq_line(col = "red") +
+  labs(title = "Normal Q-Q plot",
+       y = "Standardized Residual from modA", 
+       x = "Standard Normal Quantiles") +
+  theme(aspect.ratio = 1)
+
+p2 <- ggplot(aug_A, aes(y = .std.resid, x = "")) +
+  geom_violin(fill = "ivory") +
+  geom_boxplot(width = 0.3) +
+  labs(title = "Box and Violin Plots",
+       y = "Standardized Residual from modA",
+       x = "modA")
+
+p1 + p2 + 
+  plot_layout(widths = c(2, 1)) +
+  plot_annotation(
+    title = "Normality of Standardized Residuals from modA",
+    caption = str_glue("n = ", nrow(aug_A |> select(.std.resid)),
+                     " residual values are plotted here."))
+```
+
+
+## Scale-Location Plot via `ggplot2`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(aug_A, aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point() + 
+  geom_point(data = aug_A |> 
+               slice_max(sqrt(abs(.std.resid)), n = 3),
+             col = "red", size = 1) +
+  geom_text_repel(data = aug_A |> 
+               slice_max(sqrt(abs(.std.resid)), n = 3),
+               aes(label = SEQN), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Scale-Location Plot for modA",
+       caption = "3 largest |Standardized Residual| in red.",
+       x = "Fitted Value of sqrt(triceps)", 
+       y = "Square Root of |Standardized Residual|") +
+  theme(aspect.ratio = 1)
+```
+
+
+## Cook's Distance Index Plot via `ggplot2`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+aug_A_extra <- aug_A |> 
+  mutate(obsnum = 1:nrow(aug_A |> select(.cooksd)))
+
+ggplot(aug_A_extra, aes(x = obsnum, y = .cooksd)) + 
+  geom_point() + 
+  geom_text_repel(data = aug_A_extra |> 
+               slice_max(.cooksd, n = 3),
+               aes(label = SEQN)) +
+  labs(x = "Observation Number",
+       y = "Cook's Distance")
+```
+
+## Residuals vs. Leverage Plot via `ggplot2`
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(aug_A, aes(x = .hat, y = .std.resid)) +
+  geom_point() + 
+  geom_point(data = aug_A |> filter(.cooksd >= 0.5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug_A |> filter(.cooksd >= 0.5),
+               aes(label = SEQN), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  geom_vline(aes(xintercept = 3*mean(.hat)), lty = "dashed") +
+  labs(title = "Residuals vs. Leverage from modA",
+       caption = "Red points indicate Cook's d at least 0.5",
+       x = "Leverage", y = "Standardized Residual") +
+  theme(aspect.ratio = 1)
+```
+
+## Some Notes on the Residuals vs. Leverage Plot
+
+In this `ggplot()` approach,
+
+- Points with Cook's d >= 0.5 would be highlighted and in red, if there were any.
+- Points right of the dashed line have high leverage have more than 3 times the average leverage, and so are identified as highly leveraged by some people.
+
+## `ggplot2` Residual Plots: `modA`
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| fig.height: 6
+
+p1 <- ggplot(aug_A, aes(x = .fitted, y = .resid)) +
+  geom_point() + 
+  geom_point(data = aug_A |> 
+               slice_max(abs(.resid), n = 3),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug_A |> 
+               slice_max(abs(.resid), n = 3),
+               aes(label = SEQN), col = "red") +
+  geom_abline(intercept = 0, slope = 0, lty = "dashed") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Residuals vs. Fitted",
+       x = "Fitted Value of sqrt(triceps)", y = "Residual") 
+
+p2 <- ggplot(aug_A, aes(sample = .std.resid)) +
+  geom_qq() + 
+  geom_qq_line(col = "red") +
+  labs(title = "Normal Q-Q plot",
+       y = "Standardized Residual", 
+       x = "Standard Normal Quantiles") 
+
+p3 <- ggplot(aug_A, aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point() + 
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Scale-Location Plot",
+       x = "Fitted Value of sqrt(triceps)", 
+       y = "|Std. Residual|^(1/2)") 
+
+p4 <- ggplot(aug_A, aes(x = .hat, y = .std.resid)) +
+  geom_point() + 
+  geom_point(data = aug_A |> filter(.cooksd >= 0.5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug_A |> filter(.cooksd >= 0.5),
+               aes(label = SEQN), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  geom_vline(aes(xintercept = 3*mean(.hat)), lty = "dashed") +
+  labs(title = "Residuals vs. Leverage",
+       x = "Leverage", y = "Standardized Residual") 
+
+(p1 + p2) / (p3 + p4) +
+  plot_annotation(title = "Assessing Residuals for modA",
+                  caption = "If applicable, Cook's d >= 0.5 shown in red in bottom right plot.")
+```
+
+## `ggplot2` Residual Plots: `modB`
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| fig.height: 6
+
+p1 <- ggplot(aug_B, aes(x = .fitted, y = .resid)) +
+  geom_point() + 
+  geom_point(data = aug_B |> 
+               slice_max(abs(.resid), n = 3),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug_B |> 
+               slice_max(abs(.resid), n = 3),
+               aes(label = SEQN), col = "red") +
+  geom_abline(intercept = 0, slope = 0, lty = "dashed") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Residuals vs. Fitted",
+       x = "Fitted Value of sqrt(triceps)", y = "Residual") 
+
+p2 <- ggplot(aug_B, aes(sample = .std.resid)) +
+  geom_qq() + 
+  geom_qq_line(col = "red") +
+  labs(title = "Normal Q-Q plot",
+       y = "Standardized Residual", 
+       x = "Standard Normal Quantiles") 
+
+p3 <- ggplot(aug_B, aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point() + 
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Scale-Location Plot",
+       x = "Fitted Value of sqrt(triceps)", 
+       y = "|Std. Residual|^(1/2)") 
+
+p4 <- ggplot(aug_B, aes(x = .hat, y = .std.resid)) +
+  geom_point() + 
+  geom_point(data = aug_B |> filter(.cooksd >= 0.5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug_B |> filter(.cooksd >= 0.5),
+               aes(label = SEQN), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  geom_vline(aes(xintercept = 3*mean(.hat)), lty = "dashed") +
+  labs(title = "Residuals vs. Leverage",
+       x = "Leverage", y = "Standardized Residual") 
+
+(p1 + p2) / (p3 + p4) +
+  plot_annotation(title = "Assessing Residuals for modB",
+                  caption = "If applicable, Cook's d >= 0.5 shown in red in bottom right plot.")
+```
+
+## `ggplot2` Residual Plots: `modC`
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| fig.height: 6
+
+p1 <- ggplot(aug_C, aes(x = .fitted, y = .resid)) +
+  geom_point() + 
+  geom_point(data = aug_C |> 
+               slice_max(abs(.resid), n = 3),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug_C |> 
+               slice_max(abs(.resid), n = 3),
+               aes(label = SEQN), col = "red") +
+  geom_abline(intercept = 0, slope = 0, lty = "dashed") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Residuals vs. Fitted",
+       x = "Fitted Value of sqrt(triceps)", y = "Residual") 
+
+p2 <- ggplot(aug_C, aes(sample = .std.resid)) +
+  geom_qq() + 
+  geom_qq_line(col = "red") +
+  labs(title = "Normal Q-Q plot",
+       y = "Standardized Residual", 
+       x = "Standard Normal Quantiles") 
+
+p3 <- ggplot(aug_C, aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point() + 
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Scale-Location Plot",
+       x = "Fitted Value of sqrt(triceps)", 
+       y = "|Std. Residual|^(1/2)") 
+
+p4 <- ggplot(aug_C, aes(x = .hat, y = .std.resid)) +
+  geom_point() + 
+  geom_point(data = aug_C |> filter(.cooksd >= 0.5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug_C |> filter(.cooksd >= 0.5),
+               aes(label = SEQN), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  geom_vline(aes(xintercept = 3*mean(.hat)), lty = "dashed") +
+  labs(title = "Residuals vs. Leverage",
+       x = "Leverage", y = "Standardized Residual") 
+
+(p1 + p2) / (p3 + p4) +
+  plot_annotation(title = "Assessing Residuals for modC",
+                  caption = "If applicable, Cook's d >= 0.5 shown in red in bottom right plot.")
+```
+
+
+## `ggplot2` Residual Plots: `modD`
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| fig.height: 6
+
+p1 <- ggplot(aug_D, aes(x = .fitted, y = .resid)) +
+  geom_point() + 
+  geom_point(data = aug_D |> 
+               slice_max(abs(.resid), n = 3),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug_D |> 
+               slice_max(abs(.resid), n = 3),
+               aes(label = SEQN), col = "red") +
+  geom_abline(intercept = 0, slope = 0, lty = "dashed") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Residuals vs. Fitted",
+       x = "Fitted Value of sqrt(triceps)", y = "Residual") 
+
+p2 <- ggplot(aug_D, aes(sample = .std.resid)) +
+  geom_qq() + 
+  geom_qq_line(col = "red") +
+  labs(title = "Normal Q-Q plot",
+       y = "Standardized Residual", 
+       x = "Standard Normal Quantiles") 
+
+p3 <- ggplot(aug_D, aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point() + 
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  labs(title = "Scale-Location Plot",
+       x = "Fitted Value of sqrt(triceps)", 
+       y = "|Std. Residual|^(1/2)") 
+
+p4 <- ggplot(aug_D, aes(x = .hat, y = .std.resid)) +
+  geom_point() + 
+  geom_point(data = aug_D |> filter(.cooksd >= 0.5),
+             col = "red", size = 2) +
+  geom_text_repel(data = aug_D |> filter(.cooksd >= 0.5),
+               aes(label = SEQN), col = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, se = F) +
+  geom_vline(aes(xintercept = 3*mean(.hat)), lty = "dashed") +
+  labs(title = "Residuals vs. Leverage",
+       x = "Leverage", y = "Standardized Residual") 
+
+(p1 + p2) / (p3 + p4) +
+  plot_annotation(title = "Assessing Residuals for modD",
+                  caption = "If applicable, Cook's d >= 0.5 shown in red in bottom right plot.")
+```
+
+# Assessing the Candidates (in the test sample)
+
+## `modA` prediction errors in test sample
+
+Since the way to back out of the square root transformation is to take the square, we will square the fitted values provided by `augment` and then calculate residuals on the original scale, as follows...
+
+```{r}
+#| echo: true
+
+test_mA <- augment(modA, newdata = nnyfs_test) |>
+  mutate(name = "modA", fit_triceps = .fitted^2,
+         res_triceps = triceps - fit_triceps) 
+```
+
+## What does `test_mA` now include?
+
+```{r}
+#| echo: true
+
+test_mA |>
+  select(triceps, fit_triceps, res_triceps, SEQN, name, everything()) |> 
+  head() |> gt() |> fmt_number(decimals = 2, columns = c(2:3, 10:11)) |>
+  tab_options(table.font.size = 24)
+```
+
+## Test-sample predictions/errors: models B-D
+
+```{r}
+#| echo: true
+
+test_mB <- augment(modB, newdata = nnyfs_test) |>
+  mutate(name = "modB", fit_triceps = .fitted^2,
+         res_triceps = triceps - fit_triceps) 
+
+test_mC <- augment(modC, newdata = nnyfs_test) |>
+  mutate(name = "modC", fit_triceps = .fitted^2,
+         res_triceps = triceps - fit_triceps) 
+
+test_mD <- augment(modD, newdata = nnyfs_test) |>
+  mutate(name = "modD", fit_triceps = .fitted^2,
+         res_triceps = triceps - fit_triceps) 
+```
+
+## Combined test results: all four models
+
+```{r}
+#| echo: true
+
+test_comp <- bind_rows(test_mA, test_mB, test_mC, test_mD) |>
+  arrange(SEQN, name)
+
+test_comp |> select(triceps, fit_triceps, res_triceps, SEQN, 
+                    name, everything()) |> 
+  head(5) |> gt() |> fmt_number(decimals = 2, columns = c(2:3, 10:11)) |>
+  tab_options(table.font.size = 24)
+```
+
+## Comparing Model Predictions
+
+```{r}
+#| echo: true
+test_comp |>
+  group_by(name) |>
+  summarize(n = n(),
+            MAPE = mean(abs(res_triceps)), 
+            RMSPE = sqrt(mean(res_triceps^2)),
+            max_error = max(abs(res_triceps)),
+            median_APE = median(abs(res_triceps)),
+            valid_R2 = cor(triceps, fit_triceps)^2) |>
+  gt() |> fmt_number(decimals = 4, columns = -"n") |>
+    tab_options(table.font.size = 24)
+```
+
+## Overall Conclusions, 1
+
+We fit modA, modB, modC and modD to predict $\sqrt{triceps}$ after deleting 21 subjects with missing `triceps` and imputing (singly) one missing `weight`, yielding 1497 subjects.
+
+- Training Sample: differences between models not large
+    - `modC` has best adjusted $R^2$, $\hat{\sigma}$ and AIC
+    - `modB` has best BIC, `modD` (of course) has best $R^2$
+- Residual plots: Linearity and Normality look OK.
+    - Maybe an increasing trend in scale-location plot.
+- No signs of meaningful collinearity in training sample.
+
+## Overall Conclusions, 2
+
+- Test Sample: differences also not especially large
+    - `modB` has smallest MAPE, RMSPE, largest validated $R^2$
+    - `modA` has smallest maximum error
+    - `modC` has smallest median error
+
+I'd probably go with `modB` (emphasize predictive performance) but there's a case for some other choices.
+
+- Training sample: `modB` (waist + age) shows $R^2$ = 0.682
+- Test sample: `modB` validated $R^2$ = 0.681 so...
+
+## `summary(modB)`: using 1497 subjects
+
+```{r}
+#| echo: true
+modB_1497 <- lm(sqrt(triceps) ~ waist + age, data = nnyfs) 
+modB_1497 |> summary()
+```
+
+## `tbl_regression()` from `gtsummary`
+
+```{r}
+#| echo: true
+modB_1497 |> 
+  tbl_regression(conf.level = 0.90, intercept = TRUE) |>
+  add_vif() |>
+  as_gt() |> 
+  tab_options(table.font.size = 24)
+```
+
+- For more, see [Tutorial on tbl_regression](https://www.danieldsjoberg.com/gtsummary/articles/tbl_regression.html).
+
+## Training Sample: `modD`
+
+Using just the training sample (n = 1000), we have:
+
+```{r}
+#| echo: true
+#| output-location: slide
+modD |> 
+  tbl_regression(conf.level = 0.90, 
+                 intercept = TRUE, 
+                 add_estimate_to_reference_rows = TRUE) |>
+  add_global_p() |> 
+  add_vif() |> 
+  bold_labels() |>
+  italicize_levels() |>
+  as_gt() |> 
+  fmt_number(decimals = 3) |> 
+  tab_options(table.font.size = 20)
+```
+
+
+
+## Session Information
+
+```{r}
+#| echo: true
+session_info()
+```
+
+# Appendix
+
+# Obtaining Residual Plots with `plot()`, instead
+
+## `modA` Residuals via `plot()`
+
+```{r}
+#| echo: true
+par(mfrow = c(2,2)); plot(modA); par(mfrow = c(1,1))
+```
+
+## `modB` Residuals via `plot()`
+
+```{r}
+#| echo: true
+par(mfrow = c(2,2)); plot(modB); par(mfrow = c(1,1))
+```
+
+## `modC` Residuals via `plot()`
+
+```{r}
+#| echo: true
+par(mfrow = c(2,2)); plot(modC); par(mfrow = c(1,1))
+```
+
+## `modD` Residuals via `plot()`
+
+```{r}
+#| echo: true
+par(mfrow = c(2,2)); plot(modD); par(mfrow = c(1,1))
+```

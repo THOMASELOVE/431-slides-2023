@@ -105,7 +105,7 @@ ggplot(ohio20, aes(x = "", y = outcomes)) + geom_violin(fill = "orange") +
 
 ## Key Measure Details
 
-- **behavior** = (Best/High/Low/Worst) reflecting adult smoking, obesity, food environment, inactivity, exercise, drinking, alcohol-related driving deaths, sexually tranmitted infections and teen births. 
+- **behavior** = (Best/High/Low/Worst) reflecting adult smoking, obesity, food environment, inactivity, exercise, drinking, alcohol-related driving deaths, sexually transmitted infections and teen births. 
   - Counties in the Best group had the best behavior results.
 
 ## Key Measure Details

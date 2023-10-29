@@ -27,8 +27,6 @@ format:
 
 ## 431 strategy: "most useful" model?
 
-> Aristotle's advice: *Tell them what you will tell them. Tell them. Tell them what you told them.*
-
 1. Split the data into a development (model training) sample of about 70-80% of the observations, and a holdout (model test) sample, containing the remaining observations.
 2. Develop candidate models using the development sample.
 3. Assess the quality of fit for candidate models within the development sample.
@@ -56,7 +54,7 @@ library(ggrepel)       # help with residual plots
 library(kableExtra)    # formatting tables
 library(mosaic)        # for favstats and df_stats
 library(sessioninfo)   # for session_info()
-library(simputation)   # for single impuation
+library(simputation)   # for single imputation
 library(tidyverse)
 
 theme_set(theme_bw())
@@ -872,7 +870,7 @@ Excluding subject S-002, `mod_2` still wins four of five summaries.
 1. In-sample model predictions are about equally accurate for each of the three models. `mod2` looks better in terms of adjusted $R^2$ and AIC, but `mod1` is better on BIC. There's really not much to choose from there.
 2. Residual plots look similarly reasonable for linearity, Normality and constant variance in all three models. 
 3. No substantial signs of collinearity.
-4. In our testing sample, `mod_2` has the smallest MAPE (mean APE), RMSPE and maximum error, and the best validated $R^2$, whild `mod1` has the smallest median absolute prediction error. All three models are pretty comparable. Excluding a bad miss on one subject in the test sample doesn't change these conclusions. 
+4. In our testing sample, `mod_2` has the smallest MAPE (mean APE), RMSPE and maximum error, and the best validated $R^2$, while `mod1` has the smallest median absolute prediction error. All three models are pretty comparable. Excluding a bad miss on one subject in the test sample doesn't change these conclusions. 
 
 So, what should our "most useful" model be?
 
