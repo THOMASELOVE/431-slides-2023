@@ -382,10 +382,10 @@ tidy_m1 |>
 ```
 
 $$
-\hat{A1c} = 0.2136 - 0.0103 \mbox{ A1c_old}
+\hat{\frac{1}{A1c}} = 0.2136 - 0.0103 \mbox{ A1c_old}
 $$
 
-- Code: `$$\hat{A1c} = 0.2136 - 0.0103 \mbox{ A1c_old}$$`
+- Code: `$$\hat{\frac{1}{A1c}} = 0.2136 - 0.0103 \mbox{ A1c_old}$$`
 
 ## Summarize Fit Quality (mod_1)
 
@@ -429,7 +429,7 @@ tidy_m2 |>
 ```
 
 $$
-\hat{A1c} = 0.2031 - 0.0102 \mbox{ A1c_old} + 0.0002 \mbox{ Age}
+\hat{\frac{1}{A1c}} = 0.2031 - 0.0102 \mbox{ A1c_old} + 0.0002 \mbox{ Age}
 $$
 
 ## Summarize Fit Quality (mod_2)
@@ -461,11 +461,11 @@ tidy_m3 <- tidy(mod_3, conf.int = TRUE, conf.level = 0.95)
 tidy_m3 |>
   select(term, estimate, std.error, p.value, conf.low, conf.high) |>
   kbl(digits = 4) |> 
-  kable_classic_2(font_size = 28, full_width = F)
+  kable_classic_2(font_size = 20, full_width = F)
 ```
 
 $$
-\hat{A1c} = 0.2032 - 0.0102 \mbox{ A1c_old} + 0.0002 \mbox{ Age} \\ - 0.0014 \mbox{(Inc 30-50)} + 0.0008 \mbox{(Inc<30)}
+\hat{\frac{1}{A1c}} = 0.2032 - 0.0102 \mbox{ A1c_old} + 0.0002 \mbox{ Age} \\ - 0.0014 \mbox{(Inc 30-50)} + 0.0008 \mbox{(Inc<30)}
 $$
 
 ## Compare fit quality?
