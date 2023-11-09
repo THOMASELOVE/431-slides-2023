@@ -262,7 +262,7 @@ p1 <- ggplot(nnyfs_train, aes(x = triceps^(1/3))) +
 
 p2 <- ggplot(nnyfs_train, aes(sample = triceps^(1/3))) + 
   geom_qq(col = "royalblue") + geom_qq_line(col = "magenta") +
-  labs(y = "Observed sqrt(triceps)", x = "Normal (0,1) quantiles") + 
+  labs(y = "Observed triceps^(1/3)", x = "Normal (0,1) quantiles") + 
   theme(aspect.ratio = 1)
 
 p3 <- ggplot(nnyfs_train, aes(x = "", y = triceps^(1/3))) +
@@ -361,7 +361,7 @@ step(lm(sqrt(triceps) ~ waist + age + asthma + health,
 
 ## An Important Point
 
-Stepwise regression lands on our `mod_1`, as it turns out.
+Stepwise regression lands on our `modC`, as it turns out.
 
 - There is a **huge** amount of evidence that variable selection causes severe problems in estimation and inference.
 - Stepwise regression is an especially bad choice.
