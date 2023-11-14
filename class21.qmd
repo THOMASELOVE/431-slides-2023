@@ -1,0 +1,613 @@
+---
+title: "431 Class 21"
+author: Thomas E. Love, Ph.D.
+date: "2023-11-14"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 21 | 2023-11-14 | <https://thomaselove.github.io/431-2023/>"
+---
+
+## Today's Agenda
+
+Regression Assumptions (Chapter 30 in Course Notes)
+
+- A closer look
+- Calibrating yourself
+
+On Contingency Tables (Chapter 28 in Course Notes) 
+
+- Building a J x K Table
+- Chi-Square Tests of Independence
+    - Cochran Conditions and Checking Assumptions
+
+## Today's Packages
+
+```{r}
+#| echo: true
+#| message: false
+
+library(vcd)           # for mosaic plots
+library(janitor)       # clean_names(), tabyl(), etc. 
+library(patchwork)     # combining ggplot2 plots
+library(sessioninfo)   # for session_info()
+library(tidyverse)
+
+theme_set(theme_bw())
+```
+
+# Residual Plots and Regression Assumptions
+
+## Multivariate Regression Assumptions
+
+see Course Notes, Section 30
+
+- Linearity
+- Normality
+- Homoscedasticity
+- Independence
+
+## Available Residual Plots 
+
+`plot(model, which = c(1:3,5))`
+
+1. Residuals vs. Fitted Values
+2. Normal Q-Q Plot of Standardized Residuals
+3. Scale-Location Plot
+4. Index Plot of Cook's Distance
+5. Residuals, Leverage and Influence
+
+## An Idealized Model (by Simulation)
+
+```{r}
+#| echo: true
+#| output-location: slide
+set.seed(431122)
+
+x1 <- rnorm(200, 20, 5)
+x2 <- rnorm(200, 20, 12)
+x3 <- rnorm(200, 20, 10)
+er <- rnorm(200, 0, 1)
+y <- .3*x1 - .2*x2 + .4*x3 + er
+
+sim0 <- tibble(y, x1, x2, x3)
+
+mod0 <- lm(y ~ x1 + x2 + x3, data = sim0)
+
+summary(mod0) # shown on next slide
+```
+
+
+## Residual Plots for Idealized Model
+
+```{r}
+#| echo: true
+#| eval: false
+par(mfrow=c(2,2)); plot(mod0); par(mfrow=c(1,1))
+```
+
+shown on next page (note: `#| fig-height: 7` is helpful)
+
+- Residuals vs. Fitted values (Top Left)
+- Normal Q-Q plot of Standardized Residuals (Top Right)
+- Scale-Location plot (Bottom Left)
+- Residuals vs. Leverage, with Cook's Distance contours (Bottom Right)
+
+---
+
+```{r}
+#| echo: false
+#| fig-height: 7
+
+par(mfrow=c(2,2)); plot(mod0); par(mfrow=c(1,1))
+```
+
+## Regression assumptions violated?
+
+- Non-linearity problems show up as a curve in Residuals vs. Fitted plot
+- Heteroscedasticity problems show up as a fan in the Residuals vs. Fitted plot, and show up as a trend (up or down) in the Scale-Location plot
+- Non-Normality problems show up as outliers (all plots)
+  - Normal Q-Q plot of standardized residuals
+  - Bottom Right plot shows each point's residual, leverage & (if problematic) influence
+
+## What to Do?
+
+Importance of Assumptions (1-3):
+
+1. Linearity (critical, but amenable to transformations, often)
+2. Independence (critical, not relevant if data are a cross-section with no meaningful ordering in space or time, but vitally important if space/time play a meaningful role - longitudinal data analysis required)
+3. Homoscedasticity (constant variance: important, sometimes amenable to transformation)
+
+## What to Do?
+
+Importance of Assumptions (4-6):
+
+4. Normality due to skew (usually amenable to transformation)
+5. Normality due to many more outliers than we would expect (heavy-tailed - inference is problematic unless you account for this, sometimes a transformation can help)
+6. Normality due to a severe outlier (or a small number of severely poorly fitted points - can consider setting those points away from modeling, but requires a meaningful external explanation)
+
+## What about collinearity?
+
+"No collinearity" is not a regression assumption, but if we see substantial collinearity, we are inclined to consider dropping some of the variables, or combining them (height and weight may be highly correlated, height and BMI may be less so). 
+
+The variance inflation factor (or VIF), if it exceeds 5, is a clear indication of collinearity. We'd like to see the variances inflated only slightly (that is, VIF not much larger than 1) by correlation between the predictors, to facilitate interpretation.
+
+## What about collinearity?
+
+The best way to tell if you've improved the situation by fitting an alternative model is to actually compare and fit the two models, looking in particular at:
+
+- the standard errors of their coefficients, and 
+- their VIFs.
+
+## Resolving Assumption Violations
+
+Options include:
+
+- transform the Y variable, likely with one of our key power transformations (use Box-Cox to help)
+- transform one or more of the X variables if it seems particularly problematic, or perhaps combine them (rather than height and weight, perhaps look at BMI, or BMI and height to help reduce collinearity)
+
+## Resolving Assumption Violations
+
+Options include:
+
+- remove a point only if you have a good explanation for the point that can be provided outside of the modeling, and this is especially important if the point is influential
+- consider other methods for establishing a non-linear model (432: splines, loess smoothers, non-linear modeling)
+- consider other methods for longitudinal data with substantial dependence (432)
+
+# Six Simulations To Help You Calibrate Yourself
+
+## For each simulation, decide:
+
+Is one of the regression assumptions violated?
+
+- Linearity, Homoscedasticity, Normality, or multiple problems?
+  - All of these simulations describe cross-sectional data, with no importance to the order of the observations, so the assumption of independence isn't a concern.
+- In which of the four plot(s) shown do you see the problem?
+
+## For each simulation, decide:
+
+- If you see a point that is problematic, then:
+  - is it poorly fit?
+  - is it highly leveraged?
+  - is it influential?
+- What might you try to do about the assumption problem you see (if you see one), to resolve it?
+
+This **isn't** easy. We'll do three, and then regroup.
+
+---
+
+```{r sim1}
+#| echo: false
+#| fig.height: 7
+set.seed(431)
+x1 <- runif(200, 50, 100)
+x2 <- runif(200, 25, 125)
+x3 <- rnorm(200, 50, 15)
+er <- rt(200, 3)
+y <- 45 + .3*x1 + .2*x2 - 3*x3 + er
+sim1 <- tibble(y, x1, x2, x3)
+mod1 <- lm(y ~ x1 + x2 + x3, data = sim1)
+par(mfrow=c(2,2))
+plot(mod1, main = "Simulation 1 (n = 200)")
+par(mfrow=c(1,1))
+```
+
+---
+
+```{r sim2}
+#| echo: false
+#| fig.height: 7
+set.seed(439)
+x1 <- runif(150, 50, 100)
+x2 <- runif(150, 25, 125)
+x3 <- rnorm(150, 50, 15)
+er <- rnorm(150, 0, 1)
+y0 <- 15 + sqrt(x1) + .6*x1 - sqrt(x2) + er
+y <- y0^3/10000
+sim2 <- tibble(y, x1, x2, x3)
+mod2 <- lm(y ~ x1 + x2, data = sim2)
+par(mfrow=c(2,2))
+plot(mod2, main = "Simulation 2 (n = 150)")
+par(mfrow=c(1,1))
+```
+
+---
+
+```{r sim3}
+#| echo: false
+#| fig.height: 7
+set.seed(437)
+x1 <- runif(150, 50, 100)
+x2 <- runif(150, 25, 125)
+x3 <- rnorm(150, 50, 15)
+er <- rnorm(150, 0, 1)
+y <- 45 + .3*x1 + .2*x2 - 3*x3 + er
+sim3 <- tibble(y, x1, x2, x3)
+mod3 <- lm(y ~ x1 + x2 + x3, data = sim3)
+par(mfrow=c(2,2))
+plot(mod3, main = "Simulation 3 (n = 150)")
+par(mfrow=c(1,1))
+```
+
+# OK. How are we doing so far?
+
+## The First Three Simulations
+
+For those of you playing along at home...
+
+1. Observation 1 has an impossibly large standardized residual (Z score is close to 12), of substantial influence (Cook's distance around 0.7).
+    - Probably need to remove the point, and explain it separately.
+
+## The First Three Simulations
+
+2. Curve in residuals vs. fitted values plot suggests potential non-linearity.
+    - Natural choice would be a transformation of the outcome.
+3. No substantial problems, although there's a little bit of heteroscedasticity.
+    - I'd probably just go with the model as is.
+
+Let's try three more...
+
+---
+
+```{r sim4}
+#| echo: false
+#| fig.height: 7
+set.seed(4323)
+x1 <- runif(1000, 50, 100)
+x2 <- runif(1000, 25, 125)
+x3 <- rnorm(1000, 50, 15)
+er <- rt(1000, 2)
+y <- 45 + .3*x1 + .3*x2 - 4*x3 + er
+sim4 <- tibble(y, x1, x2, x3)
+mod4 <- lm(y ~ x1 + x2 + x3, data = sim4)
+par(mfrow=c(2,2))
+plot(mod4, main = "Simulation 4 (n = 1000)")
+par(mfrow=c(1,1))
+```
+
+---
+
+```{r sim5}
+#| echo: false
+#| fig.height: 7
+set.seed(4191)
+x1 <- runif(100, 50, 100)
+x2 <- runif(100, 25, 125)
+x3 <- rnorm(100, 50, 15)
+e0 <- ifelse(x3 > 50, 0.125, 2.2)
+e1 <- rnorm(100,0,1)
+er <- e0*e1
+y <- 45 + .3*x1 + - 4*x3 + er
+sim5 <- tibble(y, x1, x2, x3)
+mod5 <- lm(y ~ x1 + x2 + x3, data = sim5)
+par(mfrow=c(2,2))
+plot(mod5, main = "Simulation 5 (n = 100)")
+par(mfrow=c(1,1))
+```
+
+---
+
+```{r sim6}
+#| echo: false
+#| fig.height: 7
+set.seed(4317)
+x1 <- runif(1000, 50, 100)
+x2 <- runif(1000, 25, 125)
+x3 <- rnorm(1000, 50, 15)
+er <- rnorm(1000, 0, 1)
+y <- 45 + .3*x1 + .2*x2 - 3*x3 + er
+sim6 <- tibble(y, x1, x2, x3)
+sim6[496,"x3"] <- -24
+sim6[496,"y"] <- 148
+mod6 <- lm(y ~ x1 + x2 + x3, data = sim6)
+par(mfrow=c(2,2))
+plot(mod6, main = "Simulation 6 (n = 1000)")
+par(mfrow=c(1,1))
+```
+
+## The Last Three Simulations
+
+4. Normality issues - outlier-prone even with 1000 observations.
+    - Transform Y? Consider transforming the Xs?
+5. Serious heteroscedasticity - residuals much more varied for larger fitted values.
+    - Look at Residuals vs. each individual X to see if this is connected to a specific predictor, which might be skewed or something?
+
+## The Last Three Simulations
+
+6. No serious violations - point 496 has very substantial leverage, though.
+    - I'd probably just go with the model as is, after making sure that point 496's X values aren't incorrect.
+
+## What's the Goal Here?
+
+Develop an effective model. (?) (!)
+
+- Models can do many different things. What you're using the model for matters, a lot.
+- Don't fall into the trap of making binary decisions (this model isn't perfect, no matter what you do, and so your assessment of residuals will also have shades of gray).
+- The tools we have provided (scatterplots, mostly) are well designed for rather modest sample sizes. When you have truly large samples, they don't scale very well.
+
+## Developing effective models
+
+- Just because R chooses four plots for you to study doesn't mean they provide the only relevant information.
+- Embrace the uncertainty. Look at the process of checking assumptions as an opportunity to study your data more effectively.
+
+# Working with Larger Cross-Tabulations
+
+## A $2 \times 3$ contingency table
+
+This table displays the count of patients who show *complete*, *partial*, or *no response* after treatment with either **active** medication or a **placebo** in a study of 100 patients...
+
+Group | None | Partial | Complete
+-----:| :---:| :----: | :-----:
+Active | 8 | 24 | 20
+Placebo | 12 | 26 | 10
+
+Is there a statistically detectable association here, at $\alpha = 0.10$? 
+
+## The Pearson Chi-Square Test
+
+- $H_0$: Response Distribution is the same, regardless of Treatment.
+- $H_A$: There is an association between Treatment and Response.
+
+The Pearson $\chi^2$ test assumes the null hypothesis is true (rows and columns are independent.) That is a model for our data. How does it work? 
+
+## Calculating Chi-Square
+
+Here's the table, with marginal totals added.
+
+-- | None | Partial | Complete | **TOTAL**
+-------- | ------: | -----: | -----: | -----:
+Active   | 8 | 24 | 20 | **52**
+Placebo  | 12 | 26 | 10 | **48**
+**TOTAL** | **20** | **50** | **30** | **100**
+
+The test needs to estimate the expected frequency in each of the six cells under the assumption of independence. If the rows and columns were independent, what is the expected count in the Active/None cell?
+
+## The Independence Model
+
+-- | None | Partial | Complete | **TOTAL**
+---------: | ------: | -----: | -----: | -----:
+Active | -- | -- | -- | **52**
+Placebo | -- | -- | -- | **48**
+**TOTAL** | **20** | **50** | **30** | **100**
+
+If the rows and columns were independent, then: 
+
+- 20/100 of subjects would have response = "None"
+    - That's 20% of the 52 Active, and 20% of the 48 Placebo
+- 50% would have a "Partial" response, and 
+- 30% would have a "Complete" response in each group.
+
+## Observed (*Expected*) Cell Counts
+
+So, can we fill in the expected frequencies under our independence model?
+
+-- | None | Partial | Complete | **TOTAL**
+-------- | :------: | :-----: | :-----: | -----:
+Active   | 8 (*10.4*) | 24 (*26.0*) | 20 (*15.6*) | **52**
+Placebo  | 12 (*9.6*) | 26 (*24.0*) | 10 (*14.4*) | **48**
+**TOTAL** | **20** | **50** | **30** | **100**
+
+## General Formula for Expected Frequencies under Independence
+
+$$ 
+\mbox{Expected Frequency} = \frac{\mbox{Row total} \times \mbox{Column total}}{\mbox{Grand Total}}
+$$
+
+This assumes that the independence model holds: the probability of being in a particular column is exactly the same in each row, and vice versa.
+
+## Chi-Square Assumptions
+
+- Expected Frequencies: We assume that the expected frequency, under the null hypothesized model of independence, will be **at least 5** (and ideally at least 10) in each cell. If that is not the case, then the $\chi^2$ test is likely to give unreliable results. 
+- The *Cochran conditions* require us to have no cells with zero counts **and** at least 80% of the cells in our table with expected counts of 5 or higher. That's what R uses to warn you of trouble.
+- Don't meet the standards? Consider collapsing categories.
+
+## Observed (**Expected**) Cell Counts
+
+-- | None | Partial | Complete | **TOTAL**
+-------- | :------: | :-----: | :-----: | -----:
+Active   | 8 (**10.4**) | 24 (**26.0**) | 20 (**15.6**) | 52
+Placebo  | 12 (**9.6**) | 26 (**24.0**) | 10 (**14.4**) | 48
+TOTAL | 20 | 50 | 30 | 100
+
+- Do we meet the Cochran conditions in this case?
+
+## Getting the Table into R
+
+We'll put the table into a matrix in R. Here's one approach...
+
+```{r}
+#| echo: true
+T1 <- matrix(c(8, 24, 20, 12, 26, 10), 
+             ncol=3, nrow=2, byrow=TRUE)
+rownames(T1) <- c("Active", "Placebo")
+colnames(T1) <- c("None", "Partial", "Complete")
+T1
+```
+
+```{r}
+#| echo: true
+chisq.test(T1)
+```
+
+
+## Chi-Square Test Results in R
+
+- $H_0$: Response Distribution is the same, regardless of Treatment.
+    - Rows and Columns of the table are *independent*
+- $H_A$: There is an association between Treatment and Response.
+    - Rows and Columns of the table are *associated*.
+
+- For our T1, the results were: $\chi^2$ = 4.0598, df = 2, *p* = 0.1313
+
+What is the conclusion?
+
+## Does Sample Size Affect The $\chi^2$ Test?
+
+- T1 results were: $\chi^2$ = 4.0598, df = 2, *p* = 0.1313
+- What if we had the same pattern, but twice as much data?
+
+```{r}
+#| echo: true
+T1_doubled <- T1*2
+T1_doubled
+chisq.test(T1_doubled)
+```
+
+## Fisher's exact test instead?
+
+Yes, but ... if the Pearson assumptions don't hold, then the Fisher's test is not generally an improvement. 
+
+```{r}
+#| echo: true
+fisher.test(T1)
+```
+
+- It's also really meant more for square tables, with the same number of rows as columns, and relatively modest sample sizes.
+
+## Example: `dm1000` (see Classes 8-9)
+
+```{r}
+#| echo: true
+dm1000 <- read_rds("c21/data/dm_1000.Rds") |>
+    select(subject, tobacco, insurance) |>
+    drop_na()
+
+head(dm1000)
+```
+
+## Arrange the Factors in a Useful Order
+
+```{r}
+#| echo: true
+dm1000 <- dm1000 |>
+    mutate(tobacco = 
+               fct_relevel(tobacco, "Current", "Former"),
+           insurance = 
+               fct_relevel(insurance, "Medicare", 
+                           "Commercial", "Medicaid"))
+
+dm1000 |> tabyl(tobacco, insurance) |> 
+    adorn_totals(where = c("row", "col"))
+```
+
+## dm1000: Two Categorical Variables of interest
+
+```{r}
+#| echo: true
+#| output-location: slide
+p1 <- ggplot(dm1000, aes(x = insurance)) + geom_bar() + 
+    geom_text(aes(label = ..count..), stat = "count", 
+              vjust = 1.5, col = "white")
+
+p2 <- ggplot(dm1000, aes(x = tobacco)) + geom_bar() + 
+    geom_text(aes(label = ..count..), stat = "count", 
+              vjust = 1.5, col = "white")
+
+p1 + p2 
+```
+
+## A $4 \times 3$ table with the `dm1000` data
+
+```{r}
+#| echo: true
+
+dm1000 |> 
+    tabyl(insurance, tobacco) |>
+    adorn_totals(where = c("row", "col"))
+```
+
+## Plotting a Cross-Tabulation?
+
+```{r}
+#| echo: true
+
+ggplot(dm1000, aes(x = insurance, y = tobacco)) +
+    geom_count() 
+```
+
+## Tobacco Bar Chart faceted by Insurance
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+ggplot(dm1000, aes(x = tobacco, fill = tobacco)) + 
+    geom_bar() + facet_wrap(~ insurance) +
+    guides(fill = "none") + 
+    geom_text(aes(label = ..count..), stat = "count", 
+              vjust = 1, col = "black")
+```
+
+## Tobacco Status and Insurance
+
+- $H_0$: Insurance type and Tobacco status are independent
+- $H_A$: Insurance type and Tobacco status are associated
+
+Pearson $\chi^2$ results?
+
+```{r}
+#| echo: true
+
+dm1000 |> tabyl(insurance, tobacco) |> chisq.test()
+```
+
+Can we check our expected frequencies?
+
+## Checking Expected Frequencies
+
+```{r}
+#| echo: true
+
+res <- dm1000 |> tabyl(insurance, tobacco) |> chisq.test()
+
+res$observed
+res$expected
+```
+
+Any problems with Cochran conditions?
+
+## Mosaic Plot for Cross-Tabulation
+
+Each rectangle's area is proportional to the number of cases in that cell.
+
+```{r}
+#| echo: true
+
+plot(dm1000$insurance, dm1000$tobacco, ylab = "", xlab = "")
+```
+
+## Mosaic Plot from the `vcd` package (highlighting)
+
+```{r}
+#| echo: true
+
+mosaic(~ tobacco + insurance, data = dm1000, 
+       highlighting = "tobacco", 
+       highlighting_fill = c("red", "gray50", "white"))
+```
+
+## Mosaic Plot from the `vcd` package (with $\chi^2$ shading)
+
+```{r}
+#| echo: true
+mosaic(~ tobacco + insurance, data = dm1000, shade = TRUE)
+```
+
+## Notes
+
+- I will get Project A back to you ASAP.
+- The Minute Paper originally scheduled for tomorrow is canceled.
+- Project B Registration Form is due at 9 AM Thursday 2023-11-16.
+
+## Session Information {.smaller}
+
+```{r}
+session_info()
+```
+
