@@ -17,11 +17,10 @@ format:
 ## Today's Agenda
 
 - The `here()` package
-- Turning values like 77 and 99 into NA
-- A power calculation
+- Turning values like 77 and 99 into NA and vice versa
 - McNemar's test for paired samples comparisons of proportions
-- ChatGPT: Why I'm a bit skeptical
-- Favorite Movies III
+- Two more power calculation examples
+- ChatGPT and Large Language Models: Works in progress
 
 ## Today's Packages
 
@@ -29,27 +28,305 @@ format:
 #| echo: true
 #| message: false
 
-library(xfun)
+library(here)
+library(naniar)
+library(janitor)
+library(broom)
+library(gt)
+library(epibasix) ## for mcNemar function
+library(exact2x2) ## for exact2x2 function for McNemar
+library(xfun) ## for session_info()
 library(tidyverse)
 
 theme_set(theme_bw())
 ```
 
+# The `here()` package
+
 ## The `here()` package
 
-To come.
+<https://here.r-lib.org/>
+ 
+The **here** package creates paths relative to the top-level directory. The package displays the top-level of the current project on load or any time you call here():
+
+```{r}
+#| echo: true
+
+here()
+```
+
+## The `here()` package
+
+![](c24/figures/here.png)
+
+## Jenny Bryan's [Ode to the here package](https://github.com/jennybc/here_here)
+
+![](c24/figures/here2.png)
+
+## Jenny Bryan on [Project-oriendted workflow](https://www.tidyverse.org/blog/2017/12/workflow-vs-script/)
+
+![](c24/figures/fire.png)
+
+## Using R projects and the here package
+
+How can you avoid `setwd()` at the top of every script?
+
+1. Organize each logical project into a folder on your computer.
+2. Make sure the top-level folder advertises itself as such. If you use RStudio and/or Git, those both leave characteristic files that get the job done.
+3. Use the here() function to build the path when you read or write a file. Create paths relative to the top-level directory.
+4. Whenever you work on this project, launch the R process from the project’s top-level directory. 
+
+# Creating / Replacing Missing Values
 
 ## Turning values like 77 and 99 into NA
 
-To come.
+Suppose we have the following small data set, where 77 = "Refused" and 99 = "No Response" or some other term that we want to think of as "missing".
 
-## A power calculation
+```{r}
+#| echo: true
+var1 <- c(20, 22, 35, 19, 77, 99)
+var2 <- c(1, 3, 4, 77, 6, 99)
+var3 <- c("Yes", "No", 77, 99, "No", "Yes")
+dat <- tibble(var1, var2, var3) |> mutate(var3 = factor(var3))
 
-To come.
+miss_var_summary(dat)
+```
 
-## McNemar's test for paired samples comparisons of proportions
+How can we convince R the 77s and 99s are missing values?
 
-To come.
+## Use `replace_with_na()` from naniar
+
+```{r}
+#| echo: true
+dat1 <- dat |>
+  replace_with_na(
+    replace = list(var1 = c(77, 99), var2 = c(77, 99),
+                   var3 = c(77, 99)))
+miss_var_summary(dat1)
+```
+
+More on `replace_with_na()` [here](https://cran.r-project.org/web/packages/naniar/vignettes/replace-with-na.html)
+
+## Replacing 77 and 99 with NA across all variables
+
+```{r}
+#| echo: true
+dat2 <- dat |>
+  replace_with_na_all(
+    condition = ~.x %in% c(77, 99))
+miss_var_summary(dat2)
+```
+
+Other ways to extend `replace_with_na()` are described [here](https://cran.r-project.org/web/packages/naniar/vignettes/replace-with-na.html)
+
+## What if we have the opposite issue?
+
+The `replace_na()` function from the `tidyr` package ([details here](https://tidyr.tidyverse.org/reference/replace_na.html)) replaces an NA value with a specified value. 
+
+In that sense, it is the compliment to the `replace_with_na()` function.
+
+## Demo: Replacing NA with a value
+
+```{r}
+#| echo: true
+df <- tibble(x = c(1, 2, NA), y = c("a", NA, "b"))
+df
+
+df1 <- df |> replace_na(list(x = 0, y = "unknown"))
+df1
+```
+
+More on `replace_na()` [here](https://tidyr.tidyverse.org/reference/replace_na.html)
+
+# Comparing Proportions with Paired Samples
+
+## Paired Samples: Comparing Proportions
+
+Suppose we wish to investigate the association between retirement status and heart disease. One concern might be the age of the subjects: an older person is both more likely to be retired and more likely to have heart disease. In one study, therefore, 127 victims of cardiac arrest were matched on a number of characteristics that included age with 127 healthy control subjects: retirement status was then ascertained for each subject, with the results shown on the next slide.
+
+## Data from 254 subjects
+
+-- | Retired | Not Retired | ALL
+--------------: | ----------: | ---------: | ----:
+Healthy Control | 39 | 88 | 127
+Cardiac Arrest | 47 | 80 | 127
+ALL | 86 | 168 | 254
+
+We might think to use our usual `twobytwo()` function, but each matched pair in this study provides two responses, one for the Healthy Control and one for the Cardiac Arrest. 
+
+- Pearson $\chi^2$ test doesn't take this pairing into account.
+- Our analysis must take this pairing into account.
+
+## Data from 127 matched pairs
+
+:::{.callout-note}
+CA = Cardiac Arrest, HC = Healthy Control
+:::
+
+-- | CA, Retired | CA, Not Retired | **Total**
+--------------- | :---------------: | :------------: | :-----:
+HC, Retired | 27 | 12 | **39**
+HC, Not Retired | 20 | 68 | **88**
+**Total** | **47** | **80** | **127**
+
+The relevant data are stored for you in the `retire.csv` file.
+
+## The `retire` tibble
+
+```{r}
+#| echo: true
+retire <- read_csv(here("c24", "data", "retire.csv")) |>
+  mutate(healthy_control = 
+           fct_relevel(factor(healthy_control), "Retired", "Not Retired"),
+         cardiac_arrest = 
+           fct_relevel(factor(cardiac_arrest), "Retired", "Not Retired"))
+
+retire |> tabyl(healthy_control, cardiac_arrest) |>
+  adorn_totals(where = c("row", "col")) |> adorn_title()
+```
+
+- Goal: Estimate the relative odds of being retired for healthy individuals versus those who have experienced cardiac arrest.
+
+## What are we testing?
+
+-- | CA, Retired | CA, Not Retired 
+--------------- | :---------------: | :------------: 
+HC, Retired | 27 | 12 
+HC, Not Retired | 20 | 68 
+
+$H_0$: There are equal numbers of pairs in which the healthy control retired and the matched individual who had a cardiac arrest did not retire, and in which the healthy control did not retire but the matched individual who had a cardiac arrest did retire.
+
+- or $H_0$: There is no association between health status and retirement.
+
+## Concordant vs. Discordant Pairs
+
+-- | CA, Retired | CA, Not Retired 
+--------------- | :---------------: | :------------: 
+HC, Retired | 27 | 12 
+HC, Not Retired | 20 | 68 
+
+The *concordant pairs* - or the pairs when two retired people or two non-retired people are matched - provide no information for testing a null hypothesis about differences in retirement status.
+
+Thus, we focus only on the *discordant pairs* - or the pairs where a person who retires is paired with a person who has not retired.
+
+## The McNemar Odds Ratio
+
+-- | CA, Retired | CA, Not Retired 
+--------------- | :---------------: | :------------: 
+HC, Retired | 27 | 12 
+HC, Not Retired | 20 | 68 
+
+The McNemar odds ratio is just the ratio of the two discordant pairs, here: 12/20 = 0.60, which indicates the association's strength – the odds of retiring for healthy controls are estimated to be 0.6 times as high as the odds of retiring for those with cardiac arrest.
+
+## McNemar's test
+
+$H_0$: No association between retirement status and cardiac arrest
+
+```{r}
+#| echo: true
+table(retire$healthy_control, retire$cardiac_arrest) |>
+  mcnemar.test() 
+```
+
+**Without continuity correction**, and tidied...
+
+```{r}
+#| echo: true
+table(retire$healthy_control, retire$cardiac_arrest) |>
+  mcnemar.test(correct = FALSE) |> tidy() |> gt()
+```
+
+## McNemar's test via `epibasix` package (includes odds ratio)
+
+The `mcNemar()` function comes from the `epibasix` package.
+
+```{r}
+#| echo: true
+table(retire$healthy_control, retire$cardiac_arrest) |>
+  mcNemar(alpha = 0.1)
+```
+
+McNemar's test is typically valid when the number of discordant pairs exceeds 30.
+
+## McNemar test via `exact2x2()` (also includes odds ratio)
+
+- The `exact2x2` package can also do this, using a slightly different approximation for the confidence interval.
+
+```{r}
+#| echo: true
+exact2x2(retire$healthy_control, retire$cardiac_arrest, paired = TRUE,
+         conf.int = TRUE, conf.level = 0.90)
+```
+
+# More Involved Power Calculations That Still Use Balanced Designs
+
+## Example 1 Setup (1/2)
+
+In a double-blind trial, patients with active rheumatoid arthritis will be randomly assigned to receive one of two therapy types: a cheaper one, or a pricier one. 
+
+The proposed primary analysis will estimate the difference in the proportion of participants who had a DAS28 of 3.2 or less at week 48. The DAS28 is a composite index of the number of swollen and tender joints, the erythrocyte sedimentation rate, and a visual-analogue scale of patient-reported disease activity. 
+
+## Example 1 Setup (2/2)
+
+The study's power analysis established a sample size target of 225 completed enrollments in each therapy group, based on a two-sided 10% significance level, and a desire for 90% power, assuming the proportion of participants with a DAS28 of 3.2 or less at week 48 was 0.27 under the less effective therapy.
+
+What value was used in the power calculation for the proportion of participants with DAS28 of 3.2 or less at week 48 for the more effective therapy? Round your response to two decimal places.
+
+## Example 1: What code do we need?
+
+- Are we comparing means or proportions?
+- Paired or independent samples?
+- What do we want to estimate? Necessary sample size? Power? Something else?
+- What information is available to us?
+
+## Example 1 Code
+
+```{r}
+power.prop.test(n = 225, p1 = 0.27, sig.level = 0.1, power = .9)
+```
+
+Rounding to two decimal places, p2 was 0.40
+
+## Example 2 Setup (1/4)
+
+An investigator plans to replicate part of a study of the gut hormone fragment peptide $YY_{3-36}$ (PYY) which reduces appetite and food intake when infused into subjects of normal weight. The original study [is found here](https://www.nejm.org/doi/full/10.1056/nejmoa030204).
+
+> In common with the adipocyte hormone leptin, PYY reduces food intake by modulating appetite circuits in the hypothalamus. However, in obesity there is a marked resistance to the action of leptin, which greatly limits its therapeutic effectiveness. 
+
+## Example 2 Setup (2/4)
+
+The investigator wants to know whether obese subjects are also resistant to the anorectic effects of PYY. She intends to perform a randomized, placebo-controlled, double-blind crossover study on healthy obese subjects (including **an equal number of male subjects and female subjects**), with each subject studied on two occasions one week apart. 
+
+The subjects will be screened by a dietitian who will assess their eating behavior with (*several established scales*).
+
+## Example 2 Setup (3/4)
+
+On two consecutive Thursdays, we will measure caloric intake during a buffet lunch offered two hours after the infusion of that week's exposure. In one of the weeks, the subject will receive an infusion of PYY, and in the other week (with the order of the weeks determined at random) the subject will receive a placebo. The number of calories consumed at each lunch is measured and then converted to an appetite rating. Our primary outcome is the difference between the appetite rating after PYY and the appetite rating after placebo. 
+
+## Example 2 Setup (4/4)
+
+A clinically meaningful difference, the investigator tells you, would be one in which these comparisons would differ by 30 or more points on the appetite rating scale comparing the two infusions, which is 60% of the anticipated standard deviation of these results. The investigator then asks whether a study which gathers a total of 64 observations will yield at least 90% power to detect an effect of this size using a 5% two-tailed significance level, and to meet all other requirements described above. 
+
+## Example 2: What code do we need?
+
+- Are we comparing means or proportions?
+- Paired or independent samples?
+- What do we want to estimate? Necessary sample size? Power? Something else?
+- Desired significance level $\alpha$ = 0.05 (two-tailed)
+- Sample Size is 64 observations (or 32 pairs)
+- Delta is ?
+- Standard Deviation is ?
+
+## Example 2 Code
+
+```{r}
+#| echo: true
+power.t.test(n = 32, delta = 30, sd = 50, sig.level = 0.05, type = "paired")
+```
+
+What is the proper conclusion? Do we have at least 90% power?
+
+# ChatGPT and Large Language Models: Taking Stock
 
 ## ChatGPT
 
@@ -75,9 +352,17 @@ To come.
 <https://www.amstat.org/docs/default-source/amstat-documents/the-role-of-statistics-in-data-science-and-artificial-intelligence.pdf>
 :::
 
-## Favorite Movies, Part III
+## ASA Statement Excerpt 1 {.smaller}
 
-To the movies...
+[The Role of Statistics in Data Science and Artificial Intelligence](https://www.amstat.org/docs/default-source/amstat-documents/the-role-of-statistics-in-data-science-and-artificial-intelligence.pdf) (pdf): 2023-08-04
+
+> Statistics plays a central role in data science and AI, especially in the areas of ML and deep learning. Framing questions statistically allows leveraging data resources to extract knowledge and obtain better answers. The central dogma of statistical inference, that there is a component of randomness in data, enables researchers to formulate questions in terms of underlying processes, quantify uncertainty in their answers, and separate signal from noise. A statistical framework allows researchers to distinguish between causation and correlation, and thus to identify interventions that will cause changes in outcomes.
+
+## ASA Statement Excerpt 2 {.smaller}
+
+[The Role of Statistics in Data Science and Artificial Intelligence](https://www.amstat.org/docs/default-source/amstat-documents/the-role-of-statistics-in-data-science-and-artificial-intelligence.pdf) (pdf): 2023-08-04
+
+> The future of data science and AI is uncertain, but one thing is clear: the field will undoubtedly continue to evolve rapidly and have a profound impact on society. As a result, the role of statisticians will also be subject to change and expansion, as they must adapt to new technologies and tools while continuing to provide expertise in traditional areas of statistics such as uncertainty quantification, sampling design, and causal inference. The need for interdisciplinary collaboration and a diverse range of skills will become increasingly important for statisticians to remain relevant in this dynamic and ever-changing field.
 
 ## Session Information {.smaller}
 
