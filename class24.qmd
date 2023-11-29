@@ -1,0 +1,87 @@
+---
+title: "431 Class 24"
+author: Thomas E. Love, Ph.D.
+date: "2023-11-30"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 24 | 2023-11-30 | <https://thomaselove.github.io/431-2023/>"
+---
+
+## Today's Agenda
+
+- The `here()` package
+- Turning values like 77 and 99 into NA
+- A power calculation
+- McNemar's test for paired samples comparisons of proportions
+- ChatGPT: Why I'm a bit skeptical
+- Favorite Movies III
+
+## Today's Packages
+
+```{r}
+#| echo: true
+#| message: false
+
+library(xfun)
+library(tidyverse)
+
+theme_set(theme_bw())
+```
+
+## The `here()` package
+
+To come.
+
+## Turning values like 77 and 99 into NA
+
+To come.
+
+## A power calculation
+
+To come.
+
+## McNemar's test for paired samples comparisons of proportions
+
+To come.
+
+## ChatGPT
+
+![](c24/figures/chat1.png)
+
+<https://chat.openai.com/>
+
+## ChatGPT response March 2023
+
+![](c24/figures/chat2.png)
+
+## ChatGPT 3.5 response November 2023
+
+![](c24/figures/chat3.png)
+
+## ASA Statement (2023-08-04)
+
+![](c24/figures/asa1.png)
+
+:::{.callout-tip}
+# Reference
+
+<https://www.amstat.org/docs/default-source/amstat-documents/the-role-of-statistics-in-data-science-and-artificial-intelligence.pdf>
+:::
+
+## Favorite Movies, Part III
+
+To the movies...
+
+## Session Information {.smaller}
+
+```{r}
+session_info()
+```
+

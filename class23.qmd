@@ -11,7 +11,7 @@ format:
     preview-links: auto
     date-format: iso
     logo: 431-2023-pic.png
-    footer: "431 Class 22 | 2023-11-28 | <https://thomaselove.github.io/431-2023/>"
+    footer: "431 Class 23 | 2023-11-28 | <https://thomaselove.github.io/431-2023/>"
 ---
 
 ## Today's Agenda
@@ -493,6 +493,21 @@ par(mfrow = c(1,2)); plot(m5_mods$analyses[[20]], which = c(1:2))
 #| echo: true
 
 par(mfrow = c(1,2)); plot(m5_mods$analyses[[20]], which = c(3,5)); par(mfrow = c(1,1))
+```
+
+## Which animal is that?
+
+```{r}
+#| echo: true
+ms431 |> slice(36)
+```
+
+## Which are the heavy mammals?
+
+```{r}
+#| echo: true
+
+ms431 |> filter(bodywt > 500)
 ```
 
 
