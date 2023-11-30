@@ -282,6 +282,7 @@ What value was used in the power calculation for the proportion of participants 
 ## Example 1 Code
 
 ```{r}
+#| echo: true
 power.prop.test(n = 225, p1 = 0.27, sig.level = 0.1, power = .9)
 ```
 
