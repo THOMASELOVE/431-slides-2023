@@ -1,0 +1,347 @@
+---
+title: "431 Class 25"
+author: Thomas E. Love, Ph.D.
+date: "2023-12-05"
+format:
+  revealjs: 
+    theme: default
+    self-contained: true
+    slide-number: true
+    footnotes-hover: true
+    preview-links: auto
+    date-format: iso
+    logo: 431-2023-pic.png
+    footer: "431 Class 25 | 2023-12-05 | <https://thomaselove.github.io/431-2023/>"
+---
+
+## Getting Started
+
+:::{.panel-tabset}
+
+### Today's Agenda
+
+- Some modeling with Favorite Movies from 2023-10-24.
+    - Note: I downloaded Google Sheet to an Excel .xlsx file.
+    
+### Should I upgrade R to 4.3.2?
+
+Definitely not before you finish Quiz 2. 
+
+- I wrote the quiz and sketch in 4.3.1.
+- After that, it's up to you. If you use version 4.3.1 or later for your Project B, I'm fine. I'll start caring about 4.3.2 in 432.
+- You will probably want to update your packages either way.
+- I have completed the upgrade to 4.3.2. for these slides, as you can see in the Session Information.
+
+:::
+
+## Today's Packages
+
+```{r}
+#| echo: true
+#| message: false
+
+library(here)
+library(readxl)
+library(janitor)
+library(gt)
+library(gtExtras)
+library(mosaic)
+library(patchwork)
+library(naniar)
+library(simputation)
+library(mice)
+library(mitml)
+library(corrplot); library(ggmice) # new packages today
+library(broom)
+
+library(xfun)
+library(tidyverse)
+
+theme_set(theme_bw())
+```
+
+## Ingesting the data
+
+```{r}
+#| echo: true
+movie_raw <- read_excel(here("c25/data/movies_2023-10-24.xlsx"),
+                        na = c("", "NA")) |> # otherwise only "" is recognized
+  clean_names() |>
+  type.convert(as.is = FALSE) |>   # convert all characters to factors
+  mutate(film_id = as.character(film_id), 
+         film = as.character(film))
+
+movies <- movie_raw |>
+  select(film_id, imdb_pct10, fc_pctwins, rt_audiencescore, 
+         ebert, box_off_mult, budget, metascore, bw_rating, imdb_oscars, 
+         mentions, dr_love, gen_1, bacon_1, lang_1, 
+         drama, comedy, adventure, action, romance, fantasy, 
+         sci_fi, crime, thriller, animation, family, mystery, 
+         biography, music, horror, musical, war, history,
+         sport, western, film)
+
+dim(movies)
+```
+
+## Quick Check of Ingest {.scrollable}
+
+```{r}
+#| echo: true
+summary(movies)
+```
+
+## Data Cleaning
+
+1. Let's convert `budget` to express it in millions of US dollars
+2. `lang_eng` should show English (n = 177) vs. Non-English
+
+```{r}
+#| echo: true
+movies <- movies |>
+  mutate(budget = budget / 1000000,
+         lang_eng = fct_lump_n(lang_1, n = 1, other_level = "Non-English"))
+
+favstats(~ budget, data = movies) |> gt() |> 
+  fmt_number(columns = mean:sd, decimals = 2) |> gt_theme_dark()
+
+movies |> tabyl(lang_eng, lang_1) |> gt() |> gt_theme_dark()
+```
+
+## Which outcome shall we choose?
+
+We're interested in a percentage measure (0-100) addressing how beloved the movie is, according to an audience.
+
+Variable | NA | Description
+--------: | :---: | -------------------------------------------
+`imdb_pct10` | 0 | % of 10-star public ratings in IMDB as of 2023-09
+`fc_pctwins` | 0 |	% of matchups won on Flickchart as of 2023-10
+`rt_audiencescore` | 0 | Rotten Tomatoes Audience Score (% Fresh) as of 2023-10
+
+## Which outcome shall we choose? {.scrollable}
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+p1 <- ggplot(data = movies, aes(x = imdb_pct10)) +
+  geom_histogram(aes(y = after_stat(density)), binwidth = 2, 
+                 fill = "navy", col = "white") +
+  scale_x_continuous(breaks = seq(0, 100, by = 10), limits = c(0, 100)) +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(movies$imdb_pct10),
+                            sd = sd(movies$imdb_pct10)),
+                col = "magenta", linewidth = 1.5)
+
+p2 <- ggplot(data = movies, aes(x = fc_pctwins)) +
+  geom_histogram(aes(y = after_stat(density)), binwidth = 2, 
+                 fill = "navy", col = "white") +
+  scale_x_continuous(breaks = seq(0, 100, by = 10), limits = c(0, 100)) +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(movies$fc_pctwins),
+                            sd = sd(movies$fc_pctwins)),
+                col = "magenta", linewidth = 1.5)
+
+p3 <- ggplot(data = movies, aes(x = rt_audiencescore)) +
+  geom_histogram(aes(y = after_stat(density)), binwidth = 2, 
+                 fill = "navy", col = "white") +
+  scale_x_continuous(breaks = seq(0, 100, by = 10), limits = c(0, 100)) +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(movies$rt_audiencescore),
+                            sd = sd(movies$rt_audiencescore)),
+                col = "magenta", linewidth = 1.5)
+
+p1 / p2 / p3
+```
+
+
+## Which outcome shall we choose?
+
+```{r}
+#| echo: true
+df_stats(~ imdb_pct10 + fc_pctwins + rt_audiencescore, data = movies) |>
+  gt() |> fmt_number(columns = min:sd, decimals = 1) |> gt_theme_dark()
+```
+
+```{r}
+#| fig-align: center
+#| fig-height: 4
+
+p1 <- ggplot(data = movies, aes(sample = imdb_pct10)) +
+  geom_qq() + geom_qq_line(col = "magenta") + theme(aspect.ratio = 1) +
+  labs(title = "imdb_pct10", y = "imdb_pct10", x = "N(0,1) expectation")
+
+p2 <- ggplot(data = movies, aes(sample = fc_pctwins)) +
+  geom_qq() + geom_qq_line(col = "magenta") + theme(aspect.ratio = 1) +
+  labs(title = "fc_pctwins", y = "fc_pctwins", x = "N(0,1) expectation")
+
+p3 <- ggplot(data = movies, aes(sample = rt_audiencescore)) +
+  geom_qq() + geom_qq_line(col = "magenta") + theme(aspect.ratio = 1) +
+  labs(title = "rt_audiencescore", y = "rt_audiencescore", x = "N(0,1) expectation")
+
+p1 + p2 + p3
+```
+
+## Available Predictors for `fc_pctwins` {.scrollable}
+
+```{r}
+#| echo: true
+str(movies |> select(-fc_pctwins))
+```
+
+## First Cut: 18 predictors
+
+:::{.callout-tip}
+## Quantities
+
+- `imdb_pct10`, `rt_audiencescore`, `box_off_mult`, `budget`, `metascore`
+:::
+
+:::{.callout-tip}
+## Counts or Multi-categorical and ordinal
+
+- `ebert`, `imdb_oscars`, `mentions`, `bw_rating`, `bacon_1`
+:::
+
+:::{.callout-tip}
+## Binary Categorical
+
+- `dr_love`, `gen_1`, `lang_eng`, and 
+- top five genres: `drama`, `comedy`, `adventure`, `action`, `romance`
+:::
+
+## How many predictors can we use?
+
+If we have a linear regression model with 201 observations (at most, some variables are missing, remember), then how many predictors can we realistically fit?
+
+A useful starting strategy *when you're not doing variable selection* is that you need **at least** 15 observations for **each** coefficient you will estimate, including the intercept.
+
+See <https://hbiostat.org/bbr/> Frank Harrell, Biostatistics for Biomedical Research
+
+## How Many Predictors (at maximum)?
+
+- The model will run, so long as you have more observations than cases, but that's not a good standard to use.
+- Bigger samples are better, but sample size is often determined by pragmatic considerations.
+
+A more modern (and complex) answer is found in [this Riley et al (2020) BMJ article](https://www.bmj.com/content/368/bmj.m441).
+
+## 201 / 15 = 13.4 coefficients
+
+That's really a maximum, though. We'd like to avoid fitting more than perhaps 10 coefficients (including the intercept)...
+
+- Each quantitative predictor requires one coefficient
+- Each binary predictor also requires one coefficient
+- When treated as multi-categorical, a factor with k levels requires k-1 coefficients
+
+So what shall we do?
+
+## Second Cut: 9 predictors {.smaller}
+
+Variable | Type | Description
+--------: | ----- | -------------------------------------------
+`imdb_pct10` | Quant | % of 10-star public ratings in IMDB
+`rt_audiencescore` | Quant | Rotten Tomatoes Audience Score (% Fresh)
+`box_off_mult` | Quant | World Wide Gross Revenue (as multiple of budget)
+`metascore` | Quant | Metascore (0-100 scale) from critic reviews
+`imdb_oscars` | Quant | # of Oscar (Academy Award) wins
+`bw_rating` | Quant | Bechdel-Wallace Test Criteria Met (0-3)
+`lang_eng` | Binary | Is primary language English? (1 = Yes, 0 = No)
+`drama` | Binary | Is drama listed in imdb_categories? (1 = Yes, 0 = No)
+`comedy` | Binary | Is comedy listed in imdb_categories? (1 = Yes, 0 = No)
+
+- 10 coefficients x 15 = 150 observations needed, at minimum. We have 201.
+
+## Create `movies_2`
+
+```{r}
+#| echo: true
+movies_2 <- movies |>
+  select(film_id, fc_pctwins, imdb_pct10, rt_audiencescore,
+         box_off_mult, metascore, imdb_oscars, bw_rating,
+         lang_eng, drama, comedy, film)
+
+dim(movies_2)
+```
+
+- Two identifiers (`film` and `film_id`)
+- Our outcome `fc_pctwins`
+- Our nine predictors (from previous slide)
+
+## How much missingness do we have?
+
+```{r}
+#| echo: true
+miss_case_table(movies_2) |> gt() 
+miss_var_summary(movies_2) |> filter(n_miss > 0) |> gt()
+```
+
+## Can we assume MCAR and just do a complete case analysis?
+
+```{r}
+#| echo: true
+mcar_test(movies_2) |> gt() 
+```
+
+- Note that we're hurt here by reducing our data set to 12 variables, but that's the way the cookie crumbles.
+
+```{r}
+#| echo: true
+mcar_test(movies) |> gt()
+```
+
+## No data-driven variable selection
+
+Why not?
+
+- We can't afford it. Too small a ratio of sample size to predictors.
+
+What about validation?
+
+- We don't want to split our sample, certainly.
+- There are other methods (coming in 432) which would help, like k-fold cross validation and bootstrap validation.
+
+Can we do multiple imputation from the start?
+
+## Let's create 25 imputations
+
+To come.
+
+## Look at Imputation 6
+
+- Correlation matrix (from R Graphics Cookbook)
+- ggmice demonstration of relationship between fc_pctwins and box_office_mult
+- Scatterplot matrix
+
+## Build our model in Imputation 6
+
+To come.
+
+## tidied Coefficients in Imputation 6
+
+To come.
+
+## glance summary in Imputation 6
+
+To come.
+
+## Residual Plots: Imputation 6
+
+To come.
+
+## Pooled Coefficient Estimates (all 25 imputations)
+
+To come.
+
+## $R^2$ and adjusted $R^2$ after Pooling
+
+To come.
+
+## Conclusions?
+
+To come.
+
+## Session Information {.smaller}
+
+```{r}
+session_info()
+```
+
