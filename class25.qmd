@@ -48,9 +48,9 @@ library(gtExtras)
 library(mosaic)
 library(patchwork)
 library(naniar)
-library(simputation)
 library(mice)
 library(mitml)
+library(car); library(GGally)
 library(corrplot); library(ggmice) # new packages today
 library(broom)
 
@@ -93,18 +93,18 @@ summary(movies)
 ## Data Cleaning
 
 1. Let's convert `budget` to express it in millions of US dollars
-2. `lang_eng` should show English (n = 177) vs. Non-English
+2. `lang_eng` should be 1/0 for English (n = 177) vs. Non-English
 
 ```{r}
 #| echo: true
 movies <- movies |>
   mutate(budget = budget / 1000000,
-         lang_eng = fct_lump_n(lang_1, n = 1, other_level = "Non-English"))
+         lang_eng = as.numeric(lang_1 == "English"))
 
 favstats(~ budget, data = movies) |> gt() |> 
-  fmt_number(columns = mean:sd, decimals = 2) |> gt_theme_dark()
+  fmt_number(columns = mean:sd, decimals = 2) 
 
-movies |> tabyl(lang_eng, lang_1) |> gt() |> gt_theme_dark()
+movies |> tabyl(lang_eng, lang_1) |> gt() 
 ```
 
 ## Which outcome shall we choose?
@@ -159,7 +159,7 @@ p1 / p2 / p3
 ```{r}
 #| echo: true
 df_stats(~ imdb_pct10 + fc_pctwins + rt_audiencescore, data = movies) |>
-  gt() |> fmt_number(columns = min:sd, decimals = 1) |> gt_theme_dark()
+  gt() |> fmt_number(columns = min:sd, decimals = 1) 
 ```
 
 ```{r}
@@ -274,6 +274,13 @@ miss_case_table(movies_2) |> gt()
 miss_var_summary(movies_2) |> filter(n_miss > 0) |> gt()
 ```
 
+## Visualize missing data
+
+```{r}
+#| echo: true
+plot_pattern(movies_2, rotate = TRUE) ## from ggmice package
+```
+
 ## Can we assume MCAR and just do a complete case analysis?
 
 ```{r}
@@ -301,47 +308,175 @@ What about validation?
 
 Can we do multiple imputation from the start?
 
-## Let's create 25 imputations
 
-To come.
+## Let's create 25 imputations {.scrollable}
 
-## Look at Imputation 6
+More on [How Many Imputations here](https://stefvanbuuren.name/fimd/sec-howmany.html)
 
-- Correlation matrix (from R Graphics Cookbook)
-- ggmice demonstration of relationship between fc_pctwins and box_office_mult
-- Scatterplot matrix
+```{r}
+#| echo: true
+movies_imp<- mice(movies_2, m = 25, seed = 431012, print = FALSE)
+
+summary(movies_imp)
+```
+
+## Visualize missing data
+
+```{r}
+#| echo: true
+ggmice(movies_imp, aes(x = .imp, y = box_off_mult)) +
+  geom_jitter(height = 0, width = 0.2) + labs(x = "Imputation #")
+```
+
+## Visualize missing data
+
+```{r}
+#| echo: true
+ggmice(movies_2, aes(x = box_off_mult, y = fc_pctwins)) +
+  geom_point(size = 3)
+```
+
+## Visualize imputed data
+
+From all 25 imputations at once
+
+```{r}
+#| echo: true
+ggmice(movies_imp, aes(x = box_off_mult, y = fc_pctwins)) +
+  geom_point(size = 3)
+```
+
+## Select Imputation 6
+
+```{r}
+#| echo: true
+imp6 <- complete(movies_imp, 6) |> as_tibble()
+summary(imp6)
+```
+## Correlation Matrix (Imputation 6) {.scrollable}
+
+```{r}
+#| echo: true
+
+imp6_quants <- imp6 |> select(-film_id, -film)
+cor_quants6 <- cor(imp6_quants)
+
+round_half_up(cor_quants6, digits = 2)
+```
+
+## Correlation Matrix Plot (imp 6)
+
+```{r}
+#| echo: true
+corrplot(cor_quants6)
+```
+
+
+## Collinearity in Imputation 6
+
+```{r}
+#| echo: true
+i6_mod <- lm(fc_pctwins ~ imdb_pct10 + rt_audiencescore + 
+               box_off_mult + metascore + imdb_oscars + 
+               bw_rating + lang_eng + drama + comedy,
+             data = imp6)
+
+vif(i6_mod) ## from car package
+```
+
+- Any apparent problems with collinearity here?
+
+
+## Scatterplot Matrix (Imputation 6)
+
+```{r}
+#| echo: true
+
+ggpairs(imp6_quants)
+```
 
 ## Build our model in Imputation 6
 
-To come.
+```{r}
+#| echo: true
+i6_mod <- lm(fc_pctwins ~ imdb_pct10 + rt_audiencescore + 
+               box_off_mult + metascore + imdb_oscars + 
+               bw_rating + lang_eng + drama + comedy,
+             data = imp6)
 
-## tidied Coefficients in Imputation 6
+glance(i6_mod) |> gt() 
+```
 
-To come.
 
-## glance summary in Imputation 6
+## Tidied Coefficients (Imp. 6) {.scrollable}
 
-To come.
+```{r}
+#| echo: true
+tidy(i6_mod, conf.int = TRUE, conf.level = 0.90) |>
+  gt() |> fmt_number(-term, decimals = 3) 
+```
 
-## Residual Plots: Imputation 6
 
-To come.
 
-## Pooled Coefficient Estimates (all 25 imputations)
+---
 
-To come.
+```{r}
+#| echo: true
+#| fig-height: 6
+par(mfrow = c(2,2)); plot(i6_mod); par(mfrow = c(1,1))
+```
 
-## $R^2$ and adjusted $R^2$ after Pooling
 
-To come.
+## Pooled Coefficient Estimates {.scrollable}
 
-## Conclusions?
+```{r}
+#| echo: true
 
-To come.
+movies_mods <- with(movies_imp, 
+                    lm(fc_pctwins ~ imdb_pct10 + rt_audiencescore + 
+                         box_off_mult + metascore + imdb_oscars + 
+                         bw_rating + lang_eng + drama + comedy))
+
+summary(movies_mods)
+```
+
+## Pooled Estimates: $R^2$ & adjusted $R^2$
+
+```{r}
+#| echo: true
+movie_pool <- pool(movies_mods)
+
+pool.r.squared(movies_mods)
+pool.r.squared(movies_mods, adjusted = TRUE)
+```
+
+Or, you can just run `glance` on the pooled results...
+
+```{r}
+#| echo: true
+glance(movie_pool)
+```
+
+## Pooled Coefficient Estimates
+
+```{r}
+#| echo: true
+summary(movie_pool, conf.int = TRUE, conf.level = 0.90) |> gt() |>
+  fmt_number(-term, decimals = 3)
+```
+
+## Coefficient Estimates: Imp. 6
+
+```{r}
+#| echo: true
+tidy(i6_mod, conf.int = TRUE, conf.level = 0.90) |>
+  gt() |> fmt_number(-term, decimals = 3) 
+```
 
 ## Session Information {.smaller}
 
 ```{r}
+#| echo: true
 session_info()
 ```
 
