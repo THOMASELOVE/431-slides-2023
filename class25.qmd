@@ -21,7 +21,12 @@ format:
 ### Today's Agenda
 
 - Some modeling with Favorite Movies from 2023-10-24.
-    - Note: I downloaded Google Sheet to an Excel .xlsx file.
+    - Note: I downloaded our Google Sheet to an Excel .xlsx file.
+- Selecting an Outcome
+- How Many Predictors Can We Include?
+- Multiple and Single Imputation with `mice`
+- Using functions from `ggmice` and `corrplot` to visualize
+- K-fold Cross-Validation with `caret` package
     
 ### Should I upgrade R to 4.3.2?
 
@@ -42,19 +47,14 @@ Definitely not before you finish Quiz 2.
 
 library(here)
 library(readxl)
-library(janitor)
-library(gt)
-library(gtExtras)
-library(mosaic)
-library(patchwork)
-library(naniar)
-library(mice)
-library(mitml)
+library(janitor); library(gt)
+library(mosaic); library(patchwork)
+library(naniar); library(mice); library(mitml)
 library(car); library(GGally)
-library(corrplot); library(ggmice) # new packages today
-library(broom)
-
-library(xfun)
+library(broom); library(xfun)
+library(corrplot)  # NEW: plotting a correlation matrix
+library(ggmice)    # NEW: visualizing missingness and imputations
+library(caret)     # NEW: k-fold cross-validation
 library(tidyverse)
 
 theme_set(theme_bw())
@@ -242,11 +242,21 @@ str(movies |> select(-fc_pctwins))
 
 If we have a linear regression model with 201 observations (at most, some variables are missing, remember), then how many predictors can we realistically fit?
 
+:::{.callout-important}
+
 A useful starting strategy *when you're not doing variable selection* is that you need **at least** 15 observations for **each** coefficient you will estimate, including the intercept.
 
-See <https://hbiostat.org/bbr/> Frank Harrell, Biostatistics for Biomedical Research
+:::
+
+See <https://hbiostat.org/bbr/> Frank Harrell, Biostatistics for Biomedical Research for more on this topic.
 
 ## How Many Predictors (at maximum)?
+
+:::{.callout-important}
+
+A useful starting strategy *when you're not doing variable selection* is that you need **at least** 15 observations for **each** coefficient you will estimate, including the intercept.
+
+:::
 
 - The model will run, so long as you have more observations than cases, but that's not a good standard to use.
 - Bigger samples are better, but sample size is often determined by pragmatic considerations.
@@ -255,13 +265,17 @@ A more modern (and complex) answer is found in [this Riley et al (2020) BMJ arti
 
 ## 201 / 15 = 13.4 coefficients
 
-That's really a maximum, though. We'd like to avoid fitting more than perhaps 10 coefficients (including the intercept)...
+:::{.callout-important}
+
+A useful starting strategy *when you're not doing variable selection* is that you need **at least** 15 observations for **each** coefficient you will estimate, including the intercept.
+
+:::
+
+13 is really a maximum. We'd like to avoid fitting more than perhaps 10 coefficients (including the intercept)...
 
 - Each quantitative predictor requires one coefficient
 - Each binary predictor also requires one coefficient
 - When treated as multi-categorical, a factor with k levels requires k-1 coefficients
-
-So what shall we do?
 
 ## Second Cut: 9 predictors {.smaller}
 
@@ -322,6 +336,18 @@ mcar_test(movies_2) |> gt()
 ```{r}
 #| echo: true
 mcar_test(movies) |> gt()
+```
+
+## Model with Complete Cases?
+
+```{r}
+#| echo: true
+mod_cc <- lm(fc_pctwins ~ 
+               imdb_pct10 + rt_audiencescore + box_off_mult + 
+               metascore + imdb_oscars + bw_rating + lang_eng + 
+               drama + comedy, data = movies_2)
+
+glance(mod_cc) |> gt()
 ```
 
 ## No data-driven variable selection
@@ -466,6 +492,49 @@ tidy(i6_mod, conf.int = TRUE, conf.level = 0.90) |>
 par(mfrow = c(2,2)); plot(i6_mod); par(mfrow = c(1,1))
 ```
 
+## Idealized 5-fold validation strategy
+
+![](c25/figures/kfold.png)
+
+## 10-fold cross-validation?
+
+```{r}
+#| echo: true
+set.seed(431432)
+ctrl <- trainControl(method = "cv", number = 10) ## caret package
+
+## train our model on those 10 folds
+
+i6_train <- train(fc_pctwins ~ imdb_pct10 + rt_audiencescore + 
+                   box_off_mult + metascore + imdb_oscars + 
+                   bw_rating + lang_eng + drama + comedy,
+                 data = imp6, method = "lm", trControl = ctrl)
+```
+
+## Summarize 10-fold cross-validation {.scrollable}
+
+```{r}
+#| echo: true
+i6_train
+```
+
+## Fitted Model after 10-fold CV
+
+```{r}
+#| echo: true
+i6_train$finalModel
+```
+
+- Can use `tidy()`, `glance()`, etc. on this
+
+## Review Summaries within each fold
+
+```{r}
+#| echo: true
+
+i6_train$resample
+```
+
 
 ## Pooled Coefficient Estimates {.scrollable}
 
@@ -512,6 +581,43 @@ summary(movie_pool, conf.int = TRUE, conf.level = 0.90) |> gt() |>
 tidy(i6_mod, conf.int = TRUE, conf.level = 0.90) |>
   gt() |> fmt_number(-term, decimals = 3) 
 ```
+
+## Model on Complete Cases Only
+
+```{r}
+#| echo: true
+tidy(mod_cc, conf.int = TRUE, conf.level = 0.90) |>
+  gt() |> fmt_number(-term, decimals = 3)
+```
+
+## Comparing the Results
+
+- What about Fit Quality?
+
+Method | $R^2$ | Adjusted $R^2$ | # of obs.
+-----------------: | ------: | -------: | ----:
+Multiple Imputation | 0.668 | 0.653 | 201
+Single Imputation 6 | 0.664 | 0.648 | 201
+Complete Cases  | 0.674 | 0.656 | 175
+
+10-fold Cross-Validated $R^2$ for single imputation 6 was 0.648
+
+## Comparing the Estimates {.smaller}
+
+Term | MI est | MI se | MI p | I6 est | I6 se | I6 p | CC est | CC se | CC p
+----: | ----: | ----: | ----: | ----: | ----: | ----: | ----: | ----: | ----:
+Intercept | **0.32** | 4.65 | 0.95 | **0.51** | 4.56 | 0.91 | **-2.21** | 5.20 | 0.67
+imdb_pct10 | **0.42** | 0.08 | <.01 | **0.42** | 0.08 | <.01 | **0.46** | 0.08 | <.01
+rt_audience | **0.26** | 0.06 | <.01 | **0.27** | 0.06 | <.01 | **0.27** | 0.06 | <.01
+box_off_mult | **0.07** | 0.05 | 0.18 | **0.06** | 0.05 | 0.20 | **0.06** | 0.05 | 0.19
+metascore | **0.31** | 0.04 | <.01 | **0.31** | 0.04 | <.01 | **0.31** | 0.05 | <.01
+imdb_oscars | **-0.10** | 0.33 | 0.76 | **-0.07** | 0.33 | 0.84 | **-0.30** | 0.33 | 0.36
+bw_rating | **-0.37** | 0.50 | 0.46 | **-0.48** | 0.49 | 0.33 | **-0.18** | 0.52 | 0.73
+lang_eng | **3.00** | 1.79 | 0.10 | **2.74** | 1.75 | 0.12 | **3.32** | 2.30 | 0.15 
+drama | **-2.30** | 1.15 | 0.05 | **-2.50** | 1.14 | 0.03 | **-1.06** | 1.19 | 0.37
+comedy | **-2.82** | 1.20 | 0.02 | **-2.91** | 1.19 | 0.02 | **-2.32** | 1.26 | 0.07
+
+
 
 ## Session Information {.smaller}
 
