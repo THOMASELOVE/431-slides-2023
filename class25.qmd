@@ -181,6 +181,35 @@ p3 <- ggplot(data = movies, aes(sample = rt_audiencescore)) +
 p1 + p2 + p3
 ```
 
+## What is `fc_pctwins`?
+
+- Our variable is the % of its "matchups" that the movie wins.
+
+![](c25/figures/flick1.png)
+
+## [flickchart.com](https://www.flickchart.com/)
+
+![](c25/figures/flick2.png)
+
+## My Favorite Movie
+
+![](c25/figures/flick3.png)
+
+## Our Top 10 `fc_pctwins` scores
+
+```{r}
+#| echo: true
+movies |> arrange(-fc_pctwins) |> select(fc_pctwins, film) |> head(10) |> gt()
+```
+
+## Our bottom 13 `fc_pctwins` scores
+
+```{r}
+#| echo: true
+movies |> arrange(fc_pctwins) |> select(fc_pctwins, film) |> head(13) |> gt()
+```
+
+
 ## Available Predictors for `fc_pctwins` {.scrollable}
 
 ```{r}
@@ -394,6 +423,17 @@ vif(i6_mod) ## from car package
 
 ggpairs(imp6_quants)
 ```
+
+## Box-Cox transformation suggestion?
+
+```{r}
+#| echo: true
+i6_mod <- lm(fc_pctwins ~ imdb_pct10 + rt_audiencescore + 
+               box_off_mult + metascore + imdb_oscars + 
+               bw_rating + lang_eng + drama + comedy, data = imp6)
+boxCox(i6_mod) 
+```
+
 
 ## Build our model in Imputation 6
 
